@@ -1,9 +1,17 @@
 stages:
   - test
 
+variables:
+  GECKODRIVER_VERSION: "0.24.0"
+  PYTHON_VERSION: "python36"
+
 test:
   stage: test
+  before_script:
+    - yum install -y ${PYTHON_VERSION}-devel python${PYTHON_VERSION}-pip firefox
+    - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
+    - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
+    - chmod +x /usr/local/bin/geckodriver
+    - pip3 install -r requirements.txt
   script:
-  - yum install -y python36-devel python36-pip
-  - pip3 install -r requirements.txt
-  - python3 eZeeKonfigurator/functional_tests.py
+    - python3 eZeeKonfigurator/functional_tests.py
