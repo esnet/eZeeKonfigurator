@@ -6,4 +6,4 @@ test:
   script:
   - yum install -y python36-devel python36-pip
   - pip3 install -r requirements.txt
-  - python3 functional_tests.py
+  - python3 eZeeKonfigurator/functional_tests.py
