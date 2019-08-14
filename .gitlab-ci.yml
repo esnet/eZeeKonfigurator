@@ -4,16 +4,17 @@ stages:
 variables:
   GECKODRIVER_VERSION: "0.24.0"
   PYTHON_VERSION: "python36"
+  DJANGO_LOG_LEVEL: "INFO"
 
 test:
   stage: test
   before_script:
-    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox sqlite
     - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
     - pip3 install -r requirements.txt
-  script:
-    - python3 manage.py runserver 1>&2
+    - python3 manage.py runserver 1>&2 &
     - bash -c "until curl http://localhost:8000; do sleep 1; done"
+  script:
     - python3 eZeeKonfigurator/functional_tests.py
