@@ -8,7 +8,7 @@ variables:
 test:
   stage: test
   before_script:
-    - yum install -y ${PYTHON_VERSION}-devel python${PYTHON_VERSION}-pip firefox
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox
     - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
