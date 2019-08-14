@@ -15,5 +15,8 @@ test:
     - pip3 install -r requirements.txt
     - nohup python3 manage.py runserver &
     - sleep 5
+    - ps ax
+    - netstat -tlnp
+    - cat nohup.out
   script:
     - python3 eZeeKonfigurator/functional_tests.py
