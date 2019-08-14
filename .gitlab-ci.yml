@@ -4,7 +4,7 @@ stages:
 variables:
   GECKODRIVER_VERSION: "0.24.0"
   PYTHON_VERSION: "python36"
-  DJANGO_LOG_LEVEL: "INFO"
+  DJANGO_LOG_LEVEL: "DEBUG"
 
 test:
   stage: test
