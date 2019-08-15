@@ -9,7 +9,8 @@ variables:
 test:
   stage: test
   before_script:
-    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox sqlite
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox
+    - yum install -y http://www6.atomicorp.com/channels/atomic/centos/7/x86_64/RPMS/atomic-sqlite-3.8.5-6803.el7.art.x86_64.rpm
     - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
