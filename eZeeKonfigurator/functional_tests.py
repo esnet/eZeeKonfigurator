@@ -20,8 +20,8 @@ class HomePageTest(unittest.TestCase):
         # Make sure the title is correct
         self.assertIn('eZeeKonfigurator', self.browser.title)
 
-        # TODO
-        self.fail('Test more things!')
+        # Is the sidebar loaded?
+        self.assertIn('sidebar', self.browser.page_source)
 
 
 if __name__ == "__main__":
