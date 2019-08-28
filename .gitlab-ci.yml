@@ -20,6 +20,6 @@ test:
     - chmod +x /usr/local/bin/geckodriver
     - pip3 install -r requirements.txt
     - python3 manage.py runserver 1>&2 &
-    - bash -c "until curl http://localhost:8000; do sleep 1; done"
+    - bash -c "until curl -s http://localhost:8000; do sleep 1; done"
   script:
     - python3 eZeeKonfigurator/functional_tests.py

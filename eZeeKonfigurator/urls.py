@@ -20,6 +20,6 @@ import webconfig.views
 
 urlpatterns = [
     path('', webconfig.views.home, name='home'),
-
+    path('client_api/v<int:ver>/<slug:sensor_uuid>/', webconfig.views.client_api, name='client_api'),
     path('admin/', admin.site.urls),
 ]

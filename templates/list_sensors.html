@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}
+eZeeKonfigurator: Zeek Config Manager
+{% endblock %}
+{% block content %}
+    <div class="row h-100">
+    {% for s in sensors %}
+    <div class="card" style="width: 18rem;">
+  <div class="card-body">
+    <h5 class="card-title">{{ s.hostname }}</h5>
+    <h6 class="card-subtitle mb-2 text-muted">Added: {{ s.first_seen }}</h6>
+    <h6 class="card-subtitle mb-2 text-muted">Seen: {{ s.last_seen }}</h6>
+    <a href="#" class="card-link">Configure</a>
+  </div>
+</div>
+    {% endfor %}
+    </div>
+</div>
+{% endblock %}

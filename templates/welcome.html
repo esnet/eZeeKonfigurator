@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}
+eZeeKonfigurator: Zeek Config Manager
+{% endblock %}
+{% block content %}
+    <div class="row h-100">
+<div class="jumbotron">
+  <h1 class="display-4">Welcome, Zeek user!</h1>
+    {% if stage == 1 %}
+        <h2>Step 1</h2>
+    <p class="lead">An admin user has been created for you. Please save these credentials (or just hit Next if you use a password manager).</p>
+        <form action="." method="post">
+            <div class="form-row">
+            {% csrf_token %}
+                <div class="form-group col-md-4">
+            <label for="username-field"><b>Username:</b> <pre>admin</pre></label>
+            <input name="username" id="username-field" class="d-none" value="admin" readonly="1">
+                </div>
+                <div class="form-group col-md-4">
+            <label for="password-field"><b>Password:</b> <pre>{{ password }}</pre></label>
+            <input name="password" id="password-field" class="d-none" value="{{ password }}" readonly="1" type="password">
+                </div>
+            </div>
+            <hr class="my-4">
+        <button type="submit" class="float-right btn btn-success">Next</button>
+        </form>
+    {% elif stage == 2 %}
+        <h2>Step 2</h2>
+    <div class="progress">
+    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+
+  <p class="lead">To get started, you'll need to connect at least one Zeek/Bro instance. This is easily done with zkg (bro-pkg).</p>
+  <hr class="my-4">
+    <p class="lead">Requirements:</p>
+    <dl class="row">
+        <dt class="col-sm-3">Zeek/Bro >= 2.6</dt>
+        <dd class="col-sm-9">
+            <p>eZeeKonfigurator uses the <a href="https://docs.zeek.org/en/stable/frameworks/configuration.html">Zeek config framework</a>, introduced in Bro 2.6.</p>
+            <p><i>Note: To support pattern (regex) data types, Zeek >= 3.0 is needed.</i></p>
+        </dd>
+
+        <dt class="col-sm-3">zkg/bro-pkg</dt>
+        <dd class="col-sm-9">
+            <p>eZeeKonfigurator requires a package to be installed on the server, for integration. To install it: <kbd>pip install zkg</kbd></p>
+        </dd>
+    </dl>
+          </dd>
+</dl>
+  <hr class="my-4">
+    <div class="row">
+  <p class="lead">On your Zeek node, switch to the user running Zeek, and run: <br><kbd>export URL={{ server }}; zkg install ${URL}{{ package_location }} --version {{ version }} --force</kbd></p>
+
+    {% endif %}
+    </div>
+</div>
+    </div>
+</div>
+{% endblock %}

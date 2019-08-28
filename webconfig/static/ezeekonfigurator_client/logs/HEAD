@@ -1,0 +1,25 @@
+0000000000000000000000000000000000000000 27be79dd71c9fe097afa45a5d392d58b405a30fc Vlad Grigorescu <grigorescu@gmail.com> 1565896837 -0500	commit (initial): Initial commit
+27be79dd71c9fe097afa45a5d392d58b405a30fc 2f887e0ccb3a21d8003604a2cb8de3517dc12519 Vlad Grigorescu <grigorescu@gmail.com> 1565898317 -0500	commit: Fix metadata filename
+2f887e0ccb3a21d8003604a2cb8de3517dc12519 104b5803e9356d3465e14717cc17874db720512d Vlad Grigorescu <grigorescu@gmail.com> 1566844134 -0500	commit: Add build.py script
+104b5803e9356d3465e14717cc17874db720512d 50dac9a722aed6c3f08b1fdfd66398c00af8e26b Vlad Grigorescu <grigorescu@gmail.com> 1567006617 -0500	commit: Add an actual __load__.zeek and try to have build.py configure it.
+50dac9a722aed6c3f08b1fdfd66398c00af8e26b 9e419ff737ba5703e9ea6066552ad10d36f5a1e5 Vlad Grigorescu <grigorescu@gmail.com> 1567006958 -0500	commit: Need to open conf.dat for writing
+9e419ff737ba5703e9ea6066552ad10d36f5a1e5 d8e3c6b097789c6f5178bb9fa2b55828a37559d5 Vlad Grigorescu <grigorescu@gmail.com> 1567007250 -0500	commit: Try putting the data in the right place
+d8e3c6b097789c6f5178bb9fa2b55828a37559d5 9a98063e3e05cdc5c0d4b2d9c8e8fa89245201af Vlad Grigorescu <grigorescu@gmail.com> 1567007334 -0500	commit: Add some debug
+9a98063e3e05cdc5c0d4b2d9c8e8fa89245201af b1f3c2b899fa114b458630bc35f76f16fb758909 Vlad Grigorescu <grigorescu@gmail.com> 1567007388 -0500	commit: Try to fix config.dat path
+b1f3c2b899fa114b458630bc35f76f16fb758909 b9bac7b7830b9a0a5613310e5920c7d030d35fd3 Vlad Grigorescu <grigorescu@gmail.com> 1567008341 -0500	commit: Add temp blocking call to figure out what's up
+b9bac7b7830b9a0a5613310e5920c7d030d35fd3 1b34e460136f048c306bf184e6ab4b9641ca69bf Vlad Grigorescu <grigorescu@gmail.com> 1567009588 -0500	commit: Remove blocking call
+1b34e460136f048c306bf184e6ab4b9641ca69bf 1c6227133d337df680ba4aa3c839a2c9119a5f31 Vlad Grigorescu <grigorescu@gmail.com> 1567009773 -0500	commit: Set script dir
+1c6227133d337df680ba4aa3c839a2c9119a5f31 67eb133685a2b8f33053f7549a0c9148b865079f Vlad Grigorescu <grigorescu@gmail.com> 1567010209 -0500	commit: Some __load__.zeek fixes
+67eb133685a2b8f33053f7549a0c9148b865079f 92b7ef5009cb329e77dc81bd715dc6ddc184fadb Vlad Grigorescu <grigorescu@gmail.com> 1567010333 -0500	commit: Add some debugging to __load__.zeek
+92b7ef5009cb329e77dc81bd715dc6ddc184fadb 0b203375d8209174de66e73b83a340a752e49858 Vlad Grigorescu <grigorescu@gmail.com> 1567010399 -0500	commit: Return our value in the change_handler
+0b203375d8209174de66e73b83a340a752e49858 90d8c1193d6b3b05bf323e944f6238b89a850ef7 Vlad Grigorescu <grigorescu@gmail.com> 1567010593 -0500	commit: Add a done notification
+90d8c1193d6b3b05bf323e944f6238b89a850ef7 6fe3577cc49b78166746abe0c72f53b05eee01f0 Vlad Grigorescu <grigorescu@gmail.com> 1567010636 -0500	commit: Add debug
+6fe3577cc49b78166746abe0c72f53b05eee01f0 c9ff94aefbb899fcded97a56c75070f6e5bb17ec Vlad Grigorescu <grigorescu@gmail.com> 1567010836 -0500	commit: Handle the end_of_data event instead
+c9ff94aefbb899fcded97a56c75070f6e5bb17ec baa67deb962332909ccf32b8ad3d1523a4cd6e89 Vlad Grigorescu <grigorescu@gmail.com> 1567011765 -0500	commit: Simplify variables
+baa67deb962332909ccf32b8ad3d1523a4cd6e89 77ef5ed1ee5f0b8f995498229bfb1711351619fc Vlad Grigorescu <grigorescu@gmail.com> 1567011915 -0500	commit: Finish previous commit
+77ef5ed1ee5f0b8f995498229bfb1711351619fc 31a8ce74e48127b33436c8b4e4ed83dd93a15a6c Vlad Grigorescu <grigorescu@gmail.com> 1567011981 -0500	commit: Update build script to a single variable
+31a8ce74e48127b33436c8b4e4ed83dd93a15a6c 9effdd05aeb6f96fddddbe7ba793fbea9a2a2c76 Vlad Grigorescu <grigorescu@gmail.com> 1567012333 -0500	commit: Add install_command for initial check-in
+9effdd05aeb6f96fddddbe7ba793fbea9a2a2c76 1d17700a05b9b95c544c104b1c4109e77fe99257 Vlad Grigorescu <grigorescu@gmail.com> 1567012407 -0500	commit: No such thing as an install_command...
+1d17700a05b9b95c544c104b1c4109e77fe99257 11281e1010c9604d9101bc5c23559dc33794966c Vlad Grigorescu <grigorescu@gmail.com> 1567015752 -0500	commit: Get more information during startup
+11281e1010c9604d9101bc5c23559dc33794966c a7b26a1ff50af6937465380809748f29ae4d3cf0 Vlad Grigorescu <grigorescu@gmail.com> 1567026073 -0500	commit: Redo the record a bit
+a7b26a1ff50af6937465380809748f29ae4d3cf0 ee2b2ced36aa91cfd3518236b7223105a830fd58 Vlad Grigorescu <grigorescu@gmail.com> 1567026211 -0500	commit: Fix the getpid() function name
