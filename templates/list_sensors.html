@@ -1,19 +1,76 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block title %}
 eZeeKonfigurator: Zeek Config Manager
 {% endblock %}
 {% block content %}
+    {% if pending_sensors %}
+    <div class="row h-60">
+    <div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">Unauthorized sensors found.</h4>
+    <p>Before a sensor can receive configurations, it must be authorized.</p>
+    <hr>
+    <p class="mb-0">Sensors can be removed later, if you change your mind.</p>
+    </div>
+    </div>
     <div class="row h-100">
-    {% for s in sensors %}
-    <div class="card" style="width: 18rem;">
+    {% for s in pending_sensors %}
+    <div class="card mb-3" style="max-width: 18rem;">
+        <div class="card-header bg-secondary text-white"><i class="fas fa-exclamation-circle"></i> Unauthorized</div>
+        <div class="card-body">
+            <h4 class="card-title">{{ s.hostname }}</h4>
+            <h5 class="card-subtitle">Last IP: {{ s.last_ip }}</h5>
+            <hr>
+            <h5 class="card-subtitle">Authorize?
+                <div class="row">
+                <form action="{% url "authorize_sensor" s.pk %}" method="POST">{% csrf_token %}
+                <button type="submit" class="btn btn-outline-success"><i class="fas fa-plus-circle"></i></button>
+                </form>
+                <form action="{% url "block_sensor" s.pk %}" method="POST">{% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger"><i class="fas fa-minus-circle"></i></button>
+                </form>
+                    </div>
+            </h5>
+        </div>
+        <div class="card-footer">Added {{ s.first_seen | naturaltime}}.</div>
+  </div>
+</div>
+        {% endfor %}
+    </div>
+<hr>
+    {% endif %}
+    <div class="row h-100">
+    {% for s in auth_sensors %}
+        <div class="card mb-3" style="max-width: 18rem;">
+  <div class="card-header text-white bg-success">Connected ({{ s.zeek_version }})</div>
   <div class="card-body">
     <h5 class="card-title">{{ s.hostname }}</h5>
     <h6 class="card-subtitle mb-2 text-muted">Added: {{ s.first_seen }}</h6>
     <h6 class="card-subtitle mb-2 text-muted">Seen: {{ s.last_seen }}</h6>
-    <a href="#" class="card-link">Configure</a>
+    <a href="{% url "list_options" %}" class="card-link">Konfigure</a>
   </div>
 </div>
-    {% endfor %}
+    <div class="row h-100">
+    {% for s in unauth_sensors %}
+    <div class="card mb-3" style="max-width: 18rem;">
+        <div class="card-header bg-secondary text-white"><i class="fas fa-exclamation-circle"></i> Unauthorized</div>
+        <div class="card-body">
+            <h4 class="card-title">{{ s.hostname }}</h4>
+            <h5 class="card-subtitle">Last IP: {{ s.last_ip }}</h5>
+            <hr>
+            <h5 class="card-subtitle">Authorize?
+            <button type="button" class="btn btn-outline-success"><i class="fas fa-plus-circle"></i></button>
+            <button type="button" class="btn btn-outline-danger"><i class="fas fa-minus-circle"></i></button>
+            </h5>
+        </div>
+        <div class="card-footer">Added {{ s.first_seen | naturaltime}}.</div>
+  </div>
+</div>
+        {% endfor %}
+    </div>
+<hr>
+
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

@@ -57,3 +57,16 @@ eZeeKonfigurator: Zeek Config Manager
     </div>
 </div>
 {% endblock %}
+{% block script %}
+<script>
+$( document ).ready(function() {
+    var timer = setInterval(check_for_new_sensor, 300);
+    function check_for_new_sensor() {
+        $.getJSON("{% url 'api_sensor_count' sensor_type="pending" %}", function( data ) {
+            if (data['num_sensors'])
+                window.location.replace("{% url 'list_sensors' %}");
+        });
+    }
+});
+</script>
+{% endblock %}
