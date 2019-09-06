@@ -53,13 +53,13 @@ def _git_copy_server_files():
     """Run 'git update-server-info -f' and copy the resulting files into the static dir"""
 
     for path in sys.path:
-        try:
-            client_repo = git.Repo(os.path.join(path, "ezeekonfigurator_client"))
+        p = os.path.join(path, "ezeekonfigurator_client")
+        if os.path.exists(p):
+            client_repo = git.Repo(p)
             client_repo.git.update_server_info("-f")
-        except git.exc.NoSuchPathError:
-            continue
+            break
 
-    shutil.copytree("./ezeekonfigurator_client/.git", "webconfig/static/ezeekonfigurator_client")
+    shutil.copytree(os.path.join(p, ".git"), "webconfig/static/ezeekonfigurator_client")
 
 
 def _setup_create_client_pkg(request):
