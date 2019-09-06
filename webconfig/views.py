@@ -6,6 +6,7 @@ import sys
 from django import db
 from django.core import management
 from django.contrib.auth.models import User
+from django.contrib.staticfiles import finders
 from django.contrib.staticfiles.templatetags.staticfiles import static
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -45,7 +46,8 @@ def home(request):
 
 
 def _git_client_get_version():
-    with open("webconfig/static/ezeekonfigurator_client/refs/heads/master", 'r') as head:
+    path = finders.find('ezeekonfigurator_client/refs/heads/master')
+    with open(path, 'r') as head:
         return head.read()
 
 
