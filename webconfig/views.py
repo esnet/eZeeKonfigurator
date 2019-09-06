@@ -46,7 +46,11 @@ def home(request):
 
 
 def _git_client_get_version():
-    path = finders.find('ezeekonfigurator_client/refs/heads/master')
+    for p in sys.path:
+        if os.path.exists(os.path.join(p, 'ezeekonfigurator_client/refs/heads/master')):
+            path = p
+            break
+
     with open(path, 'r') as head:
         return head.read()
 
