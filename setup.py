@@ -10,7 +10,7 @@ setuptools.setup(
     author_email="vlad@es.net",
     description="A front-end to manage Zeek configurations",
     packages=setuptools.find_packages(),
-    package_data={'eZeeKonfigurator': ['ezeekonfigurator_client/.git/*']},
+    package_data={'ezeekonfigurator': ['ezeekonfigurator_client/.git/*']},
     install_requires=requirements,
     scripts=['manage.py'],
 )
