@@ -1,5 +1,7 @@
 import json
+import os
 import shutil
+import sys
 
 from django import db
 from django.core import management
@@ -50,8 +52,12 @@ def _git_client_get_version():
 def _git_copy_server_files():
     """Run 'git update-server-info -f' and copy the resulting files into the static dir"""
 
-    client_repo = git.Repo("./ezeekonfigurator_client/")
-    client_repo.git.update_server_info("-f")
+    for path in sys.path:
+        try:
+            client_repo = git.Repo(os.path.join(path, "ezeekonfigurator_client"))
+            client_repo.git.update_server_info("-f")
+        except git.exc.NoSuchPathError:
+            continue
 
     shutil.copytree("./ezeekonfigurator_client/.git", "webconfig/static/ezeekonfigurator_client")
 
