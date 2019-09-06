@@ -46,13 +46,13 @@ def home(request):
 
 
 def _git_client_get_version():
-    for p in sys.path:
-        if os.path.exists(os.path.join(p, 'ezeekonfigurator_client/refs/heads/master')):
-            path = p
-            break
-
-    with open(path, 'r') as head:
-        return head.read()
+    path = 'ezeekonfigurator_client/refs/heads/master'
+    full_path = finders.find(path)
+    if full_path:
+        with open(full_path, 'r') as head:
+            return head.read()
+    else:
+        raise FileNotFoundError("Could not determine where static files should live.")
 
 
 def _git_copy_server_files():
