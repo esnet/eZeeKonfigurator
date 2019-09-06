@@ -1,5 +1,5 @@
 [package]
-build_command = python client/build.py %(URL)s; zeek scripts
+build_command = python client/build.py %(URL)s "$(zkg config script_dir)"; zeek scripts/install
 script_dir = scripts
 user_vars =
    URL [http://localhost:8000] "eZeeKonfigurator URL"
