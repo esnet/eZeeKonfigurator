@@ -7,7 +7,7 @@ from django import db
 from django.core import management
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
-from django.contrib.staticfiles.templatetags.staticfiles import static
+from django.db.models.functions import Lower
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
@@ -129,7 +129,7 @@ def client_api_option_list(request, ver, sensor_uuid):
             namespace, name = k.split('::', 1)
         else:
             name = k
-
+        #print(v)
         option, opt_created = models.Option.objects.get_or_create(sensor=sensor, namespace=namespace, name=name,
                                                                   datatype=v['type_name'], docstring=v['doc'])
         option.save()
@@ -144,6 +144,8 @@ def client_api_option_list(request, ver, sensor_uuid):
                 # Try to parse it as a complex type
                 if v['type_name'].startswith('set['):
                     zeek_val = models.ZeekSet.create(v['type_name'], v['value'])
+                elif v['type_name'].startswith('vector of '):
+                    zeek_val = models.ZeekVector.create(v['type_name'], v['value'])
                 else:
                     print("Don't know what to do with", v['type_name'], v['value'])
                     continue
@@ -168,7 +170,7 @@ def list_sensors(request):
 
 
 def list_options(request):
-    return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by('option__namespace', 'option__name')})
+    return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by(Lower('option__namespace'), Lower('option__name'))})
 
 
 def export_options(request, ver, sensor_uuid):
@@ -200,4 +202,5 @@ def block_sensor(request, sensor_id):
 
 def reset(request):
     models.Sensor.objects.all().delete()
+    models.Option.objects.all().delete()
     return HttpResponse("OK")
