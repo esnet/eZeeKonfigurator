@@ -17,15 +17,13 @@ eZeeKonfigurator: Zeek Config Manager
   </thead>
   <tbody>
     {% for i in values %}
-        {% if i.value|length < 100 %}
     <tr>
       <th scope="row">{% if i.option.namespace != 'GLOBAL' %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }}</th>
-        <td>{{ i.value }}</td>
+        <td>{% if i.value|length < 100 %}{{ i.value|linebreaksbr }}{% else %}&lt;Value too long to display&gt;{% endif %}</td>
       <td>{{ i.option.datatype }}</td>
       <td>{{ i.option.docstring }}</td>
       <td>{{ i.option.sensor.hostname }}</td>
     </tr>
-        {% endif %}
     {% endfor %}
   </tbody>
 </table>

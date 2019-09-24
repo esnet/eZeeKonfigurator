@@ -47,7 +47,7 @@ eZeeKonfigurator: Zeek Config Manager
     <h5 class="card-title">{{ s.hostname }}</h5>
     <h6 class="card-subtitle mb-2 text-muted">Added: {{ s.first_seen }}</h6>
     <h6 class="card-subtitle mb-2 text-muted">Seen: {{ s.last_seen }}</h6>
-    <a href="{% url "list_options" %}" class="card-link">Konfigure</a>
+    <a href="{% url "list_options" %}#{{ s.uuid }}" class="card-link">Konfigure</a>
   </div>
 </div>
     <div class="row h-100">

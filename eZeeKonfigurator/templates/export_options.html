@@ -1,0 +1,2 @@
+{% autoescape off %}{% for i in values %}{% if i.option.namespace != 'GLOBAL' %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }} {{ i.value.zeek_export }}
+{% endfor %}{% endautoescape %}

@@ -40,6 +40,7 @@ def home(request):
     # If we have no sensors, help the user to add one.
     sensors = models.Sensor.objects.all()
     if not sensors:
+        management.call_command('collectstatic', verbosity=0, interactive=False)
         return _setup_create_client_pkg(request)
 
     return list_sensors(request)
@@ -69,7 +70,7 @@ def _git_copy_server_files():
 
 
 def _setup_create_client_pkg(request):
-    data = {'stage': 2, 'server': request.build_absolute_uri('').strip('/'), 'package_location': static('ezeekonfigurator_client')}
+    data = {'stage': 2, 'server': request.build_absolute_uri('').strip('/'), 'package_location': '/static/ezeekonfigurator_client'}
 
     try:
         data['version'] = _git_client_get_version()
@@ -112,7 +113,6 @@ def client_api_sensor_info(request, ver, sensor_uuid):
         s = models.Sensor.objects.create(uuid=sensor_uuid, hostname=data['hostname'],
                                          zeek_version=data['zeek_version'], last_ip=request.META.get('REMOTE_ADDR'))
 
-    print("Added sensor", s)
     return HttpResponse('')
 
 
@@ -131,10 +131,32 @@ def client_api_option_list(request, ver, sensor_uuid):
             name = k
 
         option, opt_created = models.Option.objects.get_or_create(sensor=sensor, namespace=namespace, name=name,
-                                                     datatype=v['type_name'], docstring=v['doc'])
+                                                                  datatype=v['type_name'], docstring=v['doc'])
         option.save()
-        value, val_created = models.Setting.objects.get_or_create(option=option, value=v['value'])
-        value.save()
+
+        try:
+            setting = models.Setting.objects.get(option=option)
+        except models.Setting.DoesNotExist:
+            setting = None
+        if not setting:
+            zeek_val = models.parse_atomic(v['type_name'], v['value'])
+            if not zeek_val:
+                # Try to parse it as a complex type
+                if v['type_name'].startswith('set['):
+                    zeek_val = models.ZeekSet.create(v['type_name'], v['value'])
+                else:
+                    print("Don't know what to do with", v['type_name'], v['value'])
+                    continue
+
+            if zeek_val:
+                zeek_val.save()
+                setting = models.Setting.objects.create(option=option, value=zeek_val)
+                setting.save()
+
+        else:
+            # Didn't create it, just update the value.
+            setting.value.parse(v['type_name'], v['value'])
+            setting.save()
 
     return HttpResponse('')
 
@@ -146,9 +168,16 @@ def list_sensors(request):
 
 
 def list_options(request):
-    print(models.Setting.objects.all())
     return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by('option__namespace', 'option__name')})
 
+
+def export_options(request, ver, sensor_uuid):
+    response = render(request, 'export_options.html', {
+        "values": models.Setting.objects.filter(option__sensor__authorized=True, option__sensor__uuid=sensor_uuid).order_by('option__namespace',
+                                                                                                                            'option__name')},
+                  content_type='text/plain')
+    response['Content-Disposition'] = 'attachment; filename="ezeekonfigurator.tsv"'
+    return response
 
 
 @require_POST
@@ -167,7 +196,7 @@ def block_sensor(request, sensor_id):
     return list_sensors(request)
 
 
-### Below here is for development
+# Below here is for development
 
 def reset(request):
     models.Sensor.objects.all().delete()

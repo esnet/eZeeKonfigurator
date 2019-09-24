@@ -24,6 +24,7 @@ urlpatterns = [
     path('sensors/settings', webconfig.views.list_options, name='list_options'),
     path('client_api/v<int:ver>/<slug:sensor_uuid>/option_list/', webconfig.views.client_api_option_list, name='option_list'),
     path('client_api/v<int:ver>/<slug:sensor_uuid>/sensor_info/', webconfig.views.client_api_sensor_info, name='sensor_info'),
+    path('client_api/v<int:ver>/<slug:sensor_uuid>/export_options/', webconfig.views.export_options, name='export_options'),
     path('web_api/sensor/count/<slug:sensor_type>/', webconfig.views.get_sensor_count, name='api_sensor_count'),
     path('web_api/sensor/authorize/<int:sensor_id>/', webconfig.views.authorize_sensor, name='authorize_sensor'),
     path('web_api/sensor/block/<int:sensor_id>/', webconfig.views.block_sensor, name='block_sensor'),
