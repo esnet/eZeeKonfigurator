@@ -3,3 +3,4 @@ selenium==3.141.0
 GitPython==3.0.2
 psycopg2
 gunicorn
+requests

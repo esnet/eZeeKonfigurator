@@ -89,7 +89,10 @@ def brokerd_info(request, ver, brokerd_uuid):
     m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
 
     try:
-        m.ip = data["ip"]
+        ip = data["ip"]
+        if not ip:
+            ip = request.META.get('REMOTE_ADDR')
+        m.ip = ip
         m.port = data["port"]
     except KeyError:
         return error('missing_fields')

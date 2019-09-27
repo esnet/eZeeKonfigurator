@@ -1,8 +1,16 @@
 import broker
 import datetime
+import json
 import os
+import requests
+
+client_version = "1"
 
 topic = "/ezeekonfigurator/control"
+
+bind_address = os.environ.get("BROKERD_BIND_ADDR", "")
+bind_port = os.environ.get("BROKERD_BIND_PORT", None)
+ez_url = os.environ.get("URL", "http://localhost:8000/brokerd_api/none") + "/v%s/" % client_version
 
 
 def django_setup():
@@ -15,7 +23,18 @@ def broker_loop():
     endpoint = broker.Endpoint()
     subscriber = endpoint.make_subscriber(topic)
 
-    print("Broker server started on TCP", endpoint.listen("", 47750))
+    if not bind_port:
+        port = endpoint.listen(bind_address, 0)
+    else:
+        port = int(bind_port)
+        endpoint.listen(bind_address, port)
+
+    print("Broker server started on TCP", port)
+    r = requests.post(ez_url + "brokerd_info/", json={'ip': bind_address, 'port': port})
+    if r.status_code == 200:
+        print("Connected to eZeeKonfigurator server")
+    else:
+        print("Error connecting to server")
 
     endpoint.publish(topic, broker.zeek.Event("eZeeKonfigurator::option_list_request", datetime.datetime.now()))
     while True:
