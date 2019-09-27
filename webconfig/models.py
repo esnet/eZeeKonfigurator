@@ -65,15 +65,6 @@ class ClientComponent(models.Model):
         return "%s: %s (%s)" % (self.hostname, self.client_type, self.client_version)
 
 
-class BrokerDaemon(models.Model):
-    """This is the process which speaks Broker to the sensor, and uses our web API."""
-    broker_ip = models.GenericIPAddressField("The IP that Broker is listening on")
-    broker_port = models.PositiveSmallIntegerField("The port that Broker is listening on")
-    uuid = models.UUIDField("Used for authenticating brokerd")
-
-    authorized = models.BooleanField(blank=True, null=True)
-
-
 class Option(models.Model):
     namespace = models.CharField(max_length=100, default="GLOBAL")
     name = models.CharField(max_length=100)
