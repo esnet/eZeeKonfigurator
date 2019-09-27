@@ -14,7 +14,7 @@ def authorized_brokerd(view_func):
     def wrapper(*args, **kw):
         try:
             uuid = kw['brokerd_uuid']
-            models.ClientComponent.objects.get(client_type="brokerd", uuid=uuid, authorized=True)
+            models.BrokerDaemon.objects.get(uuid=uuid, authorized=True)
         except:
             return error('unauthorized_brokerd')
 
@@ -26,7 +26,7 @@ def authorized_sensor(view_func):
     def wrapper(*args, **kw):
         try:
             uuid = kw['sensor_uuid']
-            models.ClientComponent.objects.get(client_type="zeek", uuid=uuid, authorized=True)
+            models.Sensor.objects.get(uuid=uuid, authorized=True)
         except:
             return error('unauthorized_sensor')
 
@@ -52,6 +52,7 @@ def check_version(view_func):
 @authorized_brokerd
 @csrf_exempt
 def sensor_info(request, ver, brokerd_uuid):
+    """Update or create a Zeek sensor"""
     try:
         data = json.loads(request.body)
     except:
@@ -59,20 +60,46 @@ def sensor_info(request, ver, brokerd_uuid):
 
     try:
         params = {
-                'sensor_uuid': data['sensor_uuid'],
-                'client_type': "zeek",
-                'client_version': data["client_version"],
+                'sensor_uuid': data["sensor_uuid"],
+                'zeek_version': data["zeek_version"],
                 'hostname': data["hostname"],
         }
     except KeyError:
         return error('missing_fields')
 
     try:
-        s, created = models.ClientComponent.objects.get_or_create(**params)
+        s, created = models.Sensor.objects.get_or_create(**params)
     except:
         return error('sensor_model_create_or_get')
 
     return JsonResponse({'success': True, 'created': created})
+
+
+@require_POST
+@check_version
+@authorized_brokerd
+@csrf_exempt
+def brokerd_info(request, ver, brokerd_uuid):
+    """Update the ip:port broker is listening on"""
+    try:
+        data = json.loads(request.body)
+    except:
+        return error('json_parsing_error')
+
+    m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
+
+    try:
+        m.ip = data["ip"]
+        m.port = data["port"]
+    except KeyError:
+        return error('missing_fields')
+
+    try:
+        m.save()
+    except:
+        return error('brokerd_model_save')
+
+    return JsonResponse({'success': True})
 
 #
 #

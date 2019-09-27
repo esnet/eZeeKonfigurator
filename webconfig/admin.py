@@ -3,7 +3,9 @@ from django.contrib import admin
 import webconfig.models
 
 
-class ClientComponentAdmin(admin.ModelAdmin):
+class DefaultAdmin(admin.ModelAdmin):
     pass
 
-admin.site.register(webconfig.models.ClientComponent, ClientComponentAdmin)
+
+admin.site.register(webconfig.models.Sensor, DefaultAdmin)
+admin.site.register(webconfig.models.BrokerDaemon, DefaultAdmin)

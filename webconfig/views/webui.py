@@ -1,6 +1,8 @@
+import git
 import os
 import shutil
 import sys
+import uuid as uuidlib
 
 from django import db
 from django.core import management
@@ -11,7 +13,6 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.urls import reverse
-import git
 
 from webconfig import models
 
@@ -31,12 +32,15 @@ def home(request):
         users = User.objects.all()
 
     # If we have no users, add one.
-
     if not users:
         return _setup_create_user(request)
 
+    # If we have no brokerd, add one.
+    if not models.BrokerDaemon.objects.filter(authorized=True):
+        return _setup_create_brokerd(request)
+
     # If we have no sensors, help the user to add one.
-    sensors = models.ClientComponent.objects.filter(client_type="zeek")
+    sensors = models.Sensor.objects.all()
     if not sensors:
         management.call_command('collectstatic', verbosity=0, interactive=False)
         return _setup_create_client_pkg(request)
@@ -68,7 +72,7 @@ def _git_copy_server_files():
 
 
 def _setup_create_client_pkg(request):
-    data = {'stage': 2, 'server': request.build_absolute_uri('').strip('/'), 'package_location': '/static/ezeekonfigurator_client'}
+    data = {'stage': 3, 'server': request.build_absolute_uri('').strip('/'), 'package_location': '/static/ezeekonfigurator_client'}
 
     try:
         data['version'] = _git_client_get_version()
@@ -86,6 +90,13 @@ def _setup_create_user(request):
 
     return render(request, 'welcome.html', {'stage': 1, 'password': password})
 
+
+def _setup_create_brokerd(request):
+    uuid = uuidlib.uuid4()
+    m = models.BrokerDaemon.objects.create(uuid=uuid, authorized=True)
+    m.save()
+
+    return render(request, 'welcome.html', {'stage': 2, 'uuid': uuid})
 
 def get_sensor_count(request, sensor_type):
     if sensor_type == 'authorized':

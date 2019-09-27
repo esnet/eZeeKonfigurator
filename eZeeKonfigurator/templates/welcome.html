@@ -24,13 +24,23 @@ eZeeKonfigurator: Zeek Config Manager
             <hr class="my-4">
         <button type="submit" class="float-right btn btn-success">Next</button>
         </form>
-    {% elif stage == 2 %}
+        {% elif stage == 2 %}
         <h2>Step 2</h2>
     <div class="progress">
-    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 50%" aria-valuenow="33" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
 
-  <p class="lead">To get started, you'll need to connect at least one Zeek/Bro instance. This is easily done with zkg (bro-pkg).</p>
+  <p class="lead">To get started, you'll need to connect at least one brokerd instance.</p>
+  <hr class="my-4">
+    <div class="row">
+  <p class="lead">On this server (or on a different system), run: <br><kbd>UUID={{ uuid }} broker.py</kbd></p>
+    {% elif stage == 3 %}
+        <h2>Step 3</h2>
+    <div class="progress">
+    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 50%" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+
+  <p class="lead">In the last step, you'll need to connect at least one Zeek/Bro instance. This is easily done with zkg (bro-pkg).</p>
   <hr class="my-4">
     <p class="lead">Requirements:</p>
     <dl class="row">

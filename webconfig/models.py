@@ -48,12 +48,11 @@ def get_yield_type(type_name):
     return type_name.split(' of ')[1]
 
 
-class ClientComponent(models.Model):
-    """A base class for both brokerd and Zeek sensors."""
+class Sensor(models.Model):
+    """A Zeek sensor."""
     hostname = models.CharField(max_length=150)
     uuid = models.UUIDField()
-    client_type = models.CharField(max_length=150)
-    client_version = models.CharField(max_length=30)
+    zeek_version = models.CharField(max_length=30)
 
     first_seen = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
@@ -62,7 +61,36 @@ class ClientComponent(models.Model):
     authorized = models.BooleanField(blank=True, null=True)
 
     def __str__(self):
-        return "%s: %s (%s)" % (self.hostname, self.client_type, self.client_version)
+        result = "%s (%s)" % (self.hostname, self.zeek_version)
+        if self.authorized:
+            result += " [Authorized]"
+        else:
+            result += " [Unauthorized]"
+        return result
+
+
+class BrokerDaemon(models.Model):
+    """The broker daemon communicates with our API"""
+    ip = models.GenericIPAddressField("The IP address Zeek clients should connect to", null=True, blank=True)
+    port = models.PositiveSmallIntegerField("The TCP port Zeek clients should connect to", null=True, blank=True)
+    uuid = models.UUIDField()
+
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    authorized = models.BooleanField(blank=True, null=True)
+
+    def __str__(self):
+        if not (self.ip or self.port):
+            result = "<bind address not set>"
+        else:
+            result = "%s:%d" % (self.ip, self.port)
+
+        if self.authorized:
+            result += " [Authorized]"
+        else:
+            result += " [Unauthorized]"
+        return result
 
 
 class Option(models.Model):
@@ -70,7 +98,7 @@ class Option(models.Model):
     name = models.CharField(max_length=100)
     datatype = models.CharField(max_length=100)
     docstring = models.CharField(max_length=1000, blank=True, null=True)
-    sensor = models.ForeignKey('ClientComponent', on_delete=models.CASCADE)
+    sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
 
 
 class Setting(models.Model):
