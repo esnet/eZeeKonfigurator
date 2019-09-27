@@ -48,20 +48,30 @@ def get_yield_type(type_name):
     return type_name.split(' of ')[1]
 
 
-class Sensor(models.Model):
-    """Zeek sensor"""
+class ClientComponent(models.Model):
+    """A base class for both brokerd and Zeek sensors."""
     hostname = models.CharField(max_length=150)
     uuid = models.UUIDField()
-    zeek_version = models.CharField(max_length=30)
+    client_type = models.CharField(max_length=150)
+    client_version = models.CharField(max_length=30)
 
     first_seen = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
-    last_ip = models.GenericIPAddressField()
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
 
     authorized = models.BooleanField(blank=True, null=True)
 
     def __str__(self):
-        return "%s (%s)" % (self.hostname, self.zeek_version)
+        return "%s: %s (%s)" % (self.hostname, self.client_type, self.client_version)
+
+
+class BrokerDaemon(models.Model):
+    """This is the process which speaks Broker to the sensor, and uses our web API."""
+    broker_ip = models.GenericIPAddressField("The IP that Broker is listening on")
+    broker_port = models.PositiveSmallIntegerField("The port that Broker is listening on")
+    uuid = models.UUIDField("Used for authenticating brokerd")
+
+    authorized = models.BooleanField(blank=True, null=True)
 
 
 class Option(models.Model):
@@ -69,7 +79,7 @@ class Option(models.Model):
     name = models.CharField(max_length=100)
     datatype = models.CharField(max_length=100)
     docstring = models.CharField(max_length=1000, blank=True, null=True)
-    sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
+    sensor = models.ForeignKey('ClientComponent', on_delete=models.CASCADE)
 
 
 class Setting(models.Model):
