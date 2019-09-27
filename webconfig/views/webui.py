@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import sys
@@ -8,14 +7,13 @@ from django.core import management
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
 from django.db.models.functions import Lower
-from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 import git
 
-from . import models
+from webconfig import models
 
 
 def home(request):
@@ -38,7 +36,7 @@ def home(request):
         return _setup_create_user(request)
 
     # If we have no sensors, help the user to add one.
-    sensors = models.Sensor.objects.all()
+    sensors = models.ClientComponent.objects.filter(client_type="zeek")
     if not sensors:
         management.call_command('collectstatic', verbosity=0, interactive=False)
         return _setup_create_client_pkg(request)
@@ -91,76 +89,18 @@ def _setup_create_user(request):
 
 def get_sensor_count(request, sensor_type):
     if sensor_type == 'authorized':
-        return JsonResponse({'success': True, 'num_sensors': models.Sensor.objects.filter(authorized=True).count()})
+        return JsonResponse({'success': True, 'num_sensors':
+            models.ClientComponent.objects.filter(client_type="zeek", authorized=True).count()})
     elif sensor_type == 'unauthorized':
-        return JsonResponse({'success': True, 'num_sensors': models.Sensor.objects.filter(authorized=False).count()})
+        return JsonResponse({'success': True, 'num_sensors':
+            models.ClientComponent.objects.filter(client_type="zeek", authorized=False).count()})
     elif sensor_type == 'pending':
-        return JsonResponse({'success': True, 'num_sensors': models.Sensor.objects.filter(authorized=None).count()})
+        return JsonResponse({'success': True, 'num_sensors':
+            models.ClientComponent.objects.filter(client_type="zeek", authorized=None).count()})
     elif sensor_type == 'total':
-        return JsonResponse({'success': True, 'num_sensors': models.Sensor.objects.all().count()})
+        return JsonResponse({'success': True, 'num_sensors':
+            models.ClientComponent.objects.filter(client_type="zeek").count()})
     return JsonResponse({'success': False})
-
-
-@csrf_exempt
-def client_api_sensor_info(request, ver, sensor_uuid):
-    if str(ver) != '1':
-        return HttpResponse('Error')
-
-    data = json.loads(request.body)['data']
-    try:
-        s = models.Sensor.objects.get(uuid=sensor_uuid)
-    except models.Sensor.DoesNotExist:
-        s = models.Sensor.objects.create(uuid=sensor_uuid, hostname=data['hostname'],
-                                         zeek_version=data['zeek_version'], last_ip=request.META.get('REMOTE_ADDR'))
-
-    return HttpResponse('')
-
-
-@csrf_exempt
-def client_api_option_list(request, ver, sensor_uuid):
-    if str(ver) != '1':
-        return HttpResponse('Error')
-
-    data = json.loads(request.body)['data']
-    sensor = models.Sensor.objects.get(uuid=sensor_uuid)
-    for k, v in data['options'].items():
-        namespace = "GLOBAL"
-        if '::' in k:
-            namespace, name = k.split('::', 1)
-        else:
-            name = k
-        #print(v)
-        option, opt_created = models.Option.objects.get_or_create(sensor=sensor, namespace=namespace, name=name,
-                                                                  datatype=v['type_name'], docstring=v['doc'])
-        option.save()
-
-        try:
-            setting = models.Setting.objects.get(option=option)
-        except models.Setting.DoesNotExist:
-            setting = None
-        if not setting:
-            zeek_val = models.parse_atomic(v['type_name'], v['value'])
-            if not zeek_val:
-                # Try to parse it as a complex type
-                if v['type_name'].startswith('set['):
-                    zeek_val = models.ZeekSet.create(v['type_name'], v['value'])
-                elif v['type_name'].startswith('vector of '):
-                    zeek_val = models.ZeekVector.create(v['type_name'], v['value'])
-                else:
-                    print("Don't know what to do with", v['type_name'], v['value'])
-                    continue
-
-            if zeek_val:
-                zeek_val.save()
-                setting = models.Setting.objects.create(option=option, value=zeek_val)
-                setting.save()
-
-        else:
-            # Didn't create it, just update the value.
-            setting.value.parse(v['type_name'], v['value'])
-            setting.save()
-
-    return HttpResponse('')
 
 
 def list_sensors(request):

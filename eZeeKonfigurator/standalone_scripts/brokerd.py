@@ -4,10 +4,12 @@ import os
 
 topic = "/ezeekonfigurator/control"
 
+
 def django_setup():
     from django.core.wsgi import get_wsgi_application
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eZeeKonfigurator.settings.development')
     return get_wsgi_application()
+
 
 def broker_loop():
     endpoint = broker.Endpoint()
@@ -23,6 +25,7 @@ def broker_loop():
             options = ev.args()
             for k, v in options[0][0].items():
                 print(k, v)
+
 
 if __name__ == "__main__":
     application = django_setup()

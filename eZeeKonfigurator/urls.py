@@ -16,19 +16,20 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-import webconfig.views
+import webconfig.views.webui as webui
+import webconfig.views.brokerd_api as brokerd_api
 
 urlpatterns = [
-    path('', webconfig.views.home, name='home'),
-    path('sensors/auth', webconfig.views.list_sensors, name='list_sensors'),
-    path('sensors/settings', webconfig.views.list_options, name='list_options'),
-    path('client_api/v<int:ver>/<slug:sensor_uuid>/option_list/', webconfig.views.client_api_option_list, name='option_list'),
-    path('client_api/v<int:ver>/<slug:sensor_uuid>/sensor_info/', webconfig.views.client_api_sensor_info, name='sensor_info'),
-    path('client_api/v<int:ver>/<slug:sensor_uuid>/export_options/', webconfig.views.export_options, name='export_options'),
-    path('web_api/sensor/count/<slug:sensor_type>/', webconfig.views.get_sensor_count, name='api_sensor_count'),
-    path('web_api/sensor/authorize/<int:sensor_id>/', webconfig.views.authorize_sensor, name='authorize_sensor'),
-    path('web_api/sensor/block/<int:sensor_id>/', webconfig.views.block_sensor, name='block_sensor'),
+    path('', webui.home, name='home'),
+    path('sensors/auth', webui.list_sensors, name='list_sensors'),
+    path('sensors/settings', webui.list_options, name='list_options'),
+    #path('client_api/v<int:ver>/<slug:sensor_uuid>/option_list/', webconfig.views.client_api_option_list, name='option_list'),
+    path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/<slug:sensor_uuid>/sensor_info/', brokerd_api.sensor_info, name='sensor_info'),
+    path('client_api/v<int:ver>/<slug:sensor_uuid>/export_options/', webui.export_options, name='export_options'),
+    path('web_api/sensor/count/<slug:sensor_type>/', webui.get_sensor_count, name='api_sensor_count'),
+    path('web_api/sensor/authorize/<int:sensor_id>/', webui.authorize_sensor, name='authorize_sensor'),
+    path('web_api/sensor/block/<int:sensor_id>/', webui.block_sensor, name='block_sensor'),
     path('admin/', admin.site.urls),
 
-    path('dev/reset/', webconfig.views.reset),
+    path('dev/reset/', webui.reset),
 ]
