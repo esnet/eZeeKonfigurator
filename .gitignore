@@ -1,4 +1,4 @@
 db.sqlite3
 eZeeKonfigurator/geckodriver.log
 venv/**
-.*/__pycache__/.*
+**/__pycache__/**
