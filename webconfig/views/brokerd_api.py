@@ -60,23 +60,57 @@ def sensor_info(request, ver, brokerd_uuid):
         return error('json_parsing_error')
 
     try:
-        params = {
-                'uuid': data["sensor_uuid"],
-                'zeek_version': data["zeek_version"],
-                'hostname': data["hostname"],
-        }
+        s, created = models.Sensor.objects.get_or_create(uuid=data['sensor_uuid'])
+        s.zeek_version = data['zeek_version']
+        s.hostname = data['hostname']
     except KeyError:
         return error('missing_fields')
 
-    s, created = models.Sensor.objects.get_or_create(**params)
-
     try:
-        s, created = models.Sensor.objects.get_or_create(**params)
+        s.save()
     except:
         return error('sensor_model_create_or_get', 500)
 
     return JsonResponse({'success': True, 'created': created})
 
+
+@csrf_exempt
+@require_POST
+@check_version
+@authorized_brokerd
+def sensor_option(request, ver, brokerd_uuid):
+    """Update or create a Zeek sensor option"""
+    try:
+        data = json.loads(request.body)
+    except:
+        return error('json_parsing_error')
+
+    try:
+        s = models.Sensor.objects.get(uuid=data['sensor_uuid'])
+        options = data['options']
+    except KeyError:
+        return error('missing_fields')
+    except models.Sensor.DoesNotExist:
+        return error('sensor_not_found', 404)
+
+    for opt in options:
+        name = opt['name']
+        namespace = None
+        if '::' in name:
+            namespace, name = name.split('::', 1)
+        o, created = models.Option.objects.get_or_create(namespace=namespace, name=name, sensor=s)
+
+        o.datatype = data['type']
+        if data['doc']:
+            o.docstring = data['doc']
+        o.save()
+
+        setting, created = models.Setting.objects.get_or_create(option=o)
+
+
+
+
+    return JsonResponse({'success': True})
 
 
 @csrf_exempt
@@ -90,6 +124,7 @@ def brokerd_info(request, ver, brokerd_uuid):
     except:
         return error('json_parsing_error')
 
+    # This should exist from @authorized_brokerd
     m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
 
     try:
