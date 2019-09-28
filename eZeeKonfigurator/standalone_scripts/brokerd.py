@@ -24,20 +24,19 @@ def broker_loop():
         endpoint.listen(bind_address, port)
 
     print("Broker server started on TCP", port)
-    print(ez_url + "brokerd_info/", {'ip': bind_address, 'port': port})
+
     r = requests.post(ez_url + "brokerd_info/", json={'ip': bind_address, 'port': port})
     if r.status_code == 200:
         print("Connected to eZeeKonfigurator server")
-        print(r.json())
     else:
-        print("Error connecting to server")
+        print("Error connecting to server", r.json())
 
     endpoint.publish(topic, broker.zeek.Event("eZeeKonfigurator::option_list_request", datetime.datetime.now()))
     while True:
         (t, msg) = subscriber.get()
         ev = broker.zeek.Event(msg)
         if ev.name() == "eZeeKonfigurator::option_list_reply":
-            options = ev.args()
+            uuid, options = ev.args()
             for k, v in options[0][0].items():
                 print(k, v)
 

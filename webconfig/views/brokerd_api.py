@@ -61,12 +61,14 @@ def sensor_info(request, ver, brokerd_uuid):
 
     try:
         params = {
-                'sensor_uuid': data["sensor_uuid"],
+                'uuid': data["sensor_uuid"],
                 'zeek_version': data["zeek_version"],
                 'hostname': data["hostname"],
         }
     except KeyError:
         return error('missing_fields')
+
+    s, created = models.Sensor.objects.get_or_create(**params)
 
     try:
         s, created = models.Sensor.objects.get_or_create(**params)
@@ -74,6 +76,7 @@ def sensor_info(request, ver, brokerd_uuid):
         return error('sensor_model_create_or_get', 500)
 
     return JsonResponse({'success': True, 'created': created})
+
 
 
 @csrf_exempt

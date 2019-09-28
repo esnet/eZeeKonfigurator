@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 import json
 import os
 from webconfig import models
@@ -433,3 +434,30 @@ class ZeekTestImport(TestCase):
         self.assertEqual(len(unparsed), 0)
 
 
+class SensorModel(TestCase):
+    uuid = "86439f94-0b58-41c0-bb49-78aef523189d"
+
+    def test_create_or_get_like_brokerd_api(self):
+        params = {
+                'uuid': self.uuid,
+                'zeek_version': "3.0.0-222",
+                'hostname': "zeek-prod.example.net",
+        }
+        s, created = models.Sensor.objects.get_or_create(**params)
+        s.save()
+        self.assertEqual(created, True)
+        self.assertEqual(s.uuid, self.uuid)
+
+
+class BrokerDaemonAPI(TestCase):
+    uuid = "86439f94-0b58-41c0-bb49-78aef523189d"
+
+    def setUp(self):
+        models.BrokerDaemon.objects.create(uuid=self.uuid, authorized=True, ip='127.0.0.1', port=47750).save()
+
+    def test_sensor_create(self):
+        sensor_data = {'sensor_uuid': '8099ee53-bbd9-4e1b-86f8-86a7f86612de', 'zeek_version': '3.0.0-25', 'hostname': 'bro-cmi.example.net'}
+        response = self.client.post(reverse('sensor_info', kwargs={'brokerd_uuid': self.uuid, 'ver': 1}), json.dumps(sensor_data),
+                                    content_type="application/json")
+        print(response.json())
+        self.assertEqual(response.status_code, 200)
