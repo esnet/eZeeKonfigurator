@@ -46,7 +46,8 @@ def broker_loop():
 
         elif ev.name() == "eZeeKonfigurator::option_list_reply":
             uuid, options = ev.args()
-            for k, v in options.items():
+            print(options)
+            for k, v in options[0].items():
                 type_name, value, doc = v
                 print(k, v)
 
