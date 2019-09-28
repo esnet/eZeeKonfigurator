@@ -100,31 +100,28 @@ def _setup_create_brokerd(request):
     return render(request, 'setup_2.html', data)
 
 
-def get_count(model, auth_status):
-    if auth_status == 'authorized':
-        return model.objects.filter(authorized=True).count()
-    elif auth_status == 'unauthorized':
-        return model.objects.filter(authorized=False).count()
-    elif auth_status == 'pending':
-        return model.objects.filter(authorized=None).count()
-    elif auth_status == 'total':
-        return model.objects.all().count()
-
-    return -1
+def get_auth(status):
+    s = {'authorized': {'authorized': True},
+         'unauthorized': {'authorized': False},
+         'pending': {'authorized': None},
+         }
+    return s.get(status, {})
 
 
 def get_sensor_count(request, sensor_type):
-    result = get_count(models.Sensor, sensor_type)
-    if result < 0:
+    result = models.Sensor.objects.filter(**get_auth(sensor_type)).count()
+    if result:
+        return JsonResponse({'success': True, 'num': result})
+    else:
         return JsonResponse({'success': False}, status=404)
-    return JsonResponse({'success': True, 'num': result})
 
 
 def get_brokerd_count(request, brokerd_type):
-    result = get_count(models.BrokerDaemon, brokerd_type)
-    if result < 0:
+    result = models.BrokerDaemon.objects.filter(port__isnull=False, **get_auth(brokerd_type)).count()
+    if result:
+        return JsonResponse({'success': True, 'num': result})
+    else:
         return JsonResponse({'success': False}, status=404)
-    return JsonResponse({'success': True, 'num': result})
 
 
 def list_sensors(request):
@@ -172,5 +169,6 @@ def block_sensor(request, sensor_id):
 
 def reset(request):
     models.Sensor.objects.all().delete()
+    models.BrokerDaemon.objects.all().delete()
     models.Option.objects.all().delete()
-    return HttpResponse("OK")
+    return JsonResponse("OK")
