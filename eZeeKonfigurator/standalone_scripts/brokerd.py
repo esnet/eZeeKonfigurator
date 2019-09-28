@@ -35,9 +35,19 @@ def broker_loop():
     while True:
         (t, msg) = subscriber.get()
         ev = broker.zeek.Event(msg)
-        if ev.name() == "eZeeKonfigurator::option_list_reply":
+        if ev.name() == "eZeeKonfigurator::sensor_info_reply":
             uuid, options = ev.args()
-            for k, v in options[0][0].items():
+            fqdn, cur_time, net_time, pid, is_live, is_traces, version = options
+            r = requests.post(ez_url + "sensor_info/", json={'sensor_uuid': uuid, 'zeek_version': version, 'hostname': fqdn})
+            if r.status_code == 200:
+                print("Connected to eZeeKonfigurator server")
+            else:
+                print("Error connecting to server", r.json())
+
+        elif ev.name() == "eZeeKonfigurator::option_list_reply":
+            uuid, options = ev.args()
+            for k, v in options.items():
+                type_name, value, doc = v
                 print(k, v)
 
 
