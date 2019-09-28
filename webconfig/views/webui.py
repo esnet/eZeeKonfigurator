@@ -72,7 +72,7 @@ def _git_copy_server_files():
 
 
 def _setup_create_client_pkg(request):
-    data = {'stage': 3, 'server': request.build_absolute_uri('').strip('/'), 'package_location': '/static/ezeekonfigurator_client'}
+    data = {'server': request.build_absolute_uri('').strip('/'), 'package_location': '/static/ezeekonfigurator_client'}
 
     try:
         data['version'] = _git_client_get_version()
@@ -81,23 +81,23 @@ def _setup_create_client_pkg(request):
 
     data['version'] = _git_client_get_version()
 
-    return render(request, 'welcome.html', data)
+    return render(request, 'setup_3.html', data)
 
 
 def _setup_create_user(request):
     password = User.objects.make_random_password()
     User.objects.create_superuser('admin', 'admin@example.com', password)
 
-    return render(request, 'welcome.html', {'stage': 1, 'password': password})
+    return render(request, 'setup_1.html', {'password': password})
 
 
 def _setup_create_brokerd(request):
     uuid = str(uuidlib.uuid4())
-    data = {'stage': 2, 'server': request.build_absolute_uri('brokerd_api/') + uuid}
+    data = {'server': request.build_absolute_uri('brokerd_api/') + uuid}
     m = models.BrokerDaemon.objects.create(uuid=uuid, authorized=True)
     m.save()
 
-    return render(request, 'welcome.html', data)
+    return render(request, 'setup_2.html', data)
 
 
 def get_count(model, auth_status):
