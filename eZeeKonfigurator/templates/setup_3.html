@@ -33,7 +33,7 @@ $( document ).ready(function() {
     var timer = setInterval(check_for_new_sensor, 300);
     function check_for_new_sensor() {
         $.getJSON("{% url 'api_sensor_count' sensor_type="pending" %}", function( data ) {
-            if (data['num_sensors'])
+            if (data['num'])
                 window.location.replace("{% url 'list_sensors' %}");
         });
     }

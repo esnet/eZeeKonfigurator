@@ -16,7 +16,7 @@ $( document ).ready(function() {
     var timer = setInterval(check_for_new_brokerd, 300);
     function check_for_new_brokerd() {
         $.getJSON("{% url 'api_brokerd_count' brokerd_type="authorized" %}", function( data ) {
-            if (data['num_brokerds'])
+            if (data['num'])
                 window.location.reload();
         });
     }

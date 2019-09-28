@@ -116,13 +116,15 @@ def get_count(model, auth_status):
 def get_sensor_count(request, sensor_type):
     result = get_count(models.Sensor, sensor_type)
     if result < 0:
-        return JsonResponse({'success': False})
+        return JsonResponse({'success': False}, status=404)
+    return JsonResponse({'success': True, 'num': result})
 
 
 def get_brokerd_count(request, brokerd_type):
     result = get_count(models.BrokerDaemon, brokerd_type)
     if result < 0:
-        return JsonResponse({'success': False})
+        return JsonResponse({'success': False}, status=404)
+    return JsonResponse({'success': True, 'num': result})
 
 
 def list_sensors(request):
