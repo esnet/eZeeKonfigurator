@@ -72,7 +72,7 @@ class Sensor(models.Model):
 class BrokerDaemon(models.Model):
     """The broker daemon communicates with our API"""
     ip = models.GenericIPAddressField("The IP address Zeek clients should connect to", null=True, blank=True)
-    port = models.PositiveSmallIntegerField("The TCP port Zeek clients should connect to", null=True, blank=True)
+    port = models.PositiveIntegerField("The TCP port Zeek clients should connect to", null=True, blank=True)
     uuid = models.UUIDField()
 
     first_seen = models.DateTimeField(auto_now_add=True)
@@ -422,7 +422,7 @@ class ZeekString(ZeekVal):
 
 class ZeekPort(ZeekVal):
     """A value with Zeek 'port' type. Port number and protocol {tcp, udp, icmp}"""
-    num = models.PositiveSmallIntegerField()
+    num = models.PositiveIntegerField()
     proto = models.CharField(max_length=2, choices=[('t', "tcp"), ('u', "udp"), ('i', "icmp")])
 
     def json_parse(self, type_name, json_val):
@@ -677,7 +677,7 @@ class ZeekTableVal(ZeekVal):
 class ZeekTableIndexElement(ZeekVal):
     """Because a table index can have multiple types (e.g. table[port, count]), we need to store our
     position in the index."""
-    index_pos = models.PositiveSmallIntegerField()
+    index_pos = models.PositiveIntegerField()
 
     # This points to our index value
     index_elem_ctype = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="index_elem")
