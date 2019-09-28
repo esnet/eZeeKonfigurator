@@ -92,32 +92,49 @@ def _setup_create_user(request):
 
 
 def _setup_create_brokerd(request):
-    uuid = uuidlib.uuid4()
+    uuid = str(uuidlib.uuid4())
+    data = {'stage': 2, 'server': request.build_absolute_uri('brokerd_api/') + uuid}
     m = models.BrokerDaemon.objects.create(uuid=uuid, authorized=True)
     m.save()
 
-    return render(request, 'welcome.html', {'stage': 2, 'uuid': uuid})
+    return render(request, 'welcome.html', data)
+
+
+def get_count(model, auth_status):
+    if auth_status == 'authorized':
+        return model.objects.filter(authorized=True).count()
+    elif auth_status == 'unauthorized':
+        return model.objects.filter(authorized=False).count()
+    elif auth_status == 'pending':
+        return model.objects.filter(authorized=None).count()
+    elif auth_status == 'total':
+        return model.objects.all().count()
+
+    return -1
+
 
 def get_sensor_count(request, sensor_type):
-    if sensor_type == 'authorized':
-        return JsonResponse({'success': True, 'num_sensors':
-            models.ClientComponent.objects.filter(client_type="zeek", authorized=True).count()})
-    elif sensor_type == 'unauthorized':
-        return JsonResponse({'success': True, 'num_sensors':
-            models.ClientComponent.objects.filter(client_type="zeek", authorized=False).count()})
-    elif sensor_type == 'pending':
-        return JsonResponse({'success': True, 'num_sensors':
-            models.ClientComponent.objects.filter(client_type="zeek", authorized=None).count()})
-    elif sensor_type == 'total':
-        return JsonResponse({'success': True, 'num_sensors':
-            models.ClientComponent.objects.filter(client_type="zeek").count()})
-    return JsonResponse({'success': False})
+    result = get_count(models.Sensor, sensor_type)
+    if result < 0:
+        return JsonResponse({'success': False})
+
+
+def get_brokerd_count(request, brokerd_type):
+    result = get_count(models.BrokerDaemon, brokerd_type)
+    if result < 0:
+        return JsonResponse({'success': False})
 
 
 def list_sensors(request):
     return render(request, 'list_sensors.html', {"pending_sensors": models.Sensor.objects.filter(authorized=None),
                                                  "unauth_sensors": models.Sensor.objects.filter(authorized=False),
                                                  "auth_sensors": models.Sensor.objects.filter(authorized=True)})
+
+
+def list_brokerd(request):
+    return render(request, 'list_brokerd.html', {"pending_brokers": models.BrokerDaemon.objects.filter(authorized=None),
+                                                 "unauth_brokers": models.BrokerDaemon.objects.filter(authorized=False),
+                                                 "auth_brokers": models.BrokerDaemon.objects.filter(authorized=True)})
 
 
 def list_options(request):

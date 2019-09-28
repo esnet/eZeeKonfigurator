@@ -1,0 +1,42 @@
+{% extends "welcome.html" %}
+{% block stage_content %}
+    <h2>Step 3</h2>
+    <div class="progress">
+    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 50%" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+
+  <p class="lead">In the last step, you'll need to connect at least one Zeek/Bro instance. This is easily done with zkg (bro-pkg).</p>
+  <hr class="my-4">
+    <p class="lead">Requirements:</p>
+    <dl class="row">
+        <dt class="col-sm-3">Zeek/Bro >= 2.6</dt>
+        <dd class="col-sm-9">
+            <p>eZeeKonfigurator uses the <a href="https://docs.zeek.org/en/stable/frameworks/configuration.html">Zeek config framework</a>, introduced in Bro 2.6.</p>
+            <p><i>Note: To support pattern (regex) data types, Zeek >= 3.0 is needed.</i></p>
+        </dd>
+
+        <dt class="col-sm-3">zkg/bro-pkg</dt>
+        <dd class="col-sm-9">
+            <p>eZeeKonfigurator requires a package to be installed on the server, for integration. To install it: <kbd>pip install zkg</kbd></p>
+        </dd>
+    </dl>
+          </dd>
+</dl>
+  <hr class="my-4">
+    <div class="row">
+  <p class="lead">On your Zeek node, switch to the user running Zeek, and run: <br><kbd>export URL={{ server }}; zkg install ${URL}{{ package_location }} --version {{ version }} --force</kbd></p>
+
+{% endblock %}
+{% block script %}
+<script>
+$( document ).ready(function() {
+    var timer = setInterval(check_for_new_sensor, 300);
+    function check_for_new_sensor() {
+        $.getJSON("{% url 'api_sensor_count' sensor_type="pending" %}", function( data ) {
+            if (data['num_sensors'])
+                window.location.replace("{% url 'list_sensors' %}");
+        });
+    }
+});
+</script>
+{% endblock %}

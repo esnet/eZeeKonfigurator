@@ -5,9 +5,10 @@ from django.http import JsonResponse
 
 from webconfig import models
 
+api_version = 1
 
-def error(text):
-    return JsonResponse({'success': False, 'errors': [text]})
+def error(text, status=400):
+    return JsonResponse({'success': False, 'errors': [text]}, status=status)
 
 
 def authorized_brokerd(view_func):
@@ -16,7 +17,7 @@ def authorized_brokerd(view_func):
             uuid = kw['brokerd_uuid']
             models.BrokerDaemon.objects.get(uuid=uuid, authorized=True)
         except:
-            return error('unauthorized_brokerd')
+            return error('unauthorized_brokerd', 404)
 
         return view_func(*args, **kw)
     return wrapper
@@ -28,7 +29,7 @@ def authorized_sensor(view_func):
             uuid = kw['sensor_uuid']
             models.Sensor.objects.get(uuid=uuid, authorized=True)
         except:
-            return error('unauthorized_sensor')
+            return error('unauthorized_sensor', 404)
 
         return view_func(*args, **kw)
     return wrapper
@@ -38,19 +39,19 @@ def check_version(view_func):
     def wrapper(*args, **kw):
         try:
             version = kw['ver']
-            if version != '1':
+            if version != api_version:
                 raise ValueError
         except:
-            return error('version_mismatch')
+            return error('version_mismatch', 426)
 
         return view_func(*args, **kw)
     return wrapper
 
 
+@csrf_exempt
 @require_POST
 @check_version
 @authorized_brokerd
-@csrf_exempt
 def sensor_info(request, ver, brokerd_uuid):
     """Update or create a Zeek sensor"""
     try:
@@ -70,15 +71,15 @@ def sensor_info(request, ver, brokerd_uuid):
     try:
         s, created = models.Sensor.objects.get_or_create(**params)
     except:
-        return error('sensor_model_create_or_get')
+        return error('sensor_model_create_or_get', 500)
 
     return JsonResponse({'success': True, 'created': created})
 
 
+@csrf_exempt
 @require_POST
 @check_version
 @authorized_brokerd
-@csrf_exempt
 def brokerd_info(request, ver, brokerd_uuid):
     """Update the ip:port broker is listening on"""
     try:
@@ -100,7 +101,7 @@ def brokerd_info(request, ver, brokerd_uuid):
     try:
         m.save()
     except:
-        return error('brokerd_model_save')
+        return error('brokerd_model_save', 500)
 
     return JsonResponse({'success': True})
 

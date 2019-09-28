@@ -1,0 +1,20 @@
+{% extends "welcome.html" %}
+{% block stage_content %}
+<h2>Step 1</h2>
+    <p class="lead">An admin user has been created for you. Please save these credentials (or just hit Next if you use a password manager).</p>
+        <form action="." method="post">
+            <div class="form-row">
+            {% csrf_token %}
+                <div class="form-group col-md-4">
+            <label for="username-field"><b>Username:</b> <pre>admin</pre></label>
+            <input name="username" id="username-field" class="d-none" value="admin" readonly="1">
+                </div>
+                <div class="form-group col-md-4">
+            <label for="password-field"><b>Password:</b> <pre>{{ password }}</pre></label>
+            <input name="password" id="password-field" class="d-none" value="{{ password }}" readonly="1" type="password">
+                </div>
+            </div>
+            <hr class="my-4">
+        <button type="submit" class="float-right btn btn-success">Next</button>
+        </form>
+{% endblock %}

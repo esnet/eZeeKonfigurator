@@ -1,0 +1,25 @@
+{% extends "welcome.html" %}
+{% block stage_content %}
+<h2>Step 2</h2>
+    <div class="progress">
+    <div class="progress-bar progress-bar-striped" role="progressbar" style="width: 50%" aria-valuenow="33" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+
+  <p class="lead">To get started, you'll need to connect at least one brokerd instance.</p>
+  <hr class="my-4">
+    <div class="row">
+  <p class="lead">On this server (or on a different system), run: <br><kbd>URL={{ server }} brokerd.py</kbd></p>
+{% endblock %}
+{% block script %}
+<script>
+$( document ).ready(function() {
+    var timer = setInterval(check_for_new_brokerd, 300);
+    function check_for_new_brokerd() {
+        $.getJSON("{% url 'api_brokerd_count' sensor_type="authorized" %}", function( data ) {
+            if (data['num_brokerds'])
+                window.location.reload();
+        });
+    }
+});
+</script>
+{% endblock %}

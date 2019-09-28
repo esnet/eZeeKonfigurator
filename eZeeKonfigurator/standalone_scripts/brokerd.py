@@ -13,12 +13,6 @@ bind_port = os.environ.get("BROKERD_BIND_PORT", None)
 ez_url = os.environ.get("URL", "http://localhost:8000/brokerd_api/none") + "/v%s/" % client_version
 
 
-def django_setup():
-    from django.core.wsgi import get_wsgi_application
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eZeeKonfigurator.settings.development')
-    return get_wsgi_application()
-
-
 def broker_loop():
     endpoint = broker.Endpoint()
     subscriber = endpoint.make_subscriber(topic)
@@ -30,9 +24,11 @@ def broker_loop():
         endpoint.listen(bind_address, port)
 
     print("Broker server started on TCP", port)
+    print(ez_url + "brokerd_info/", {'ip': bind_address, 'port': port})
     r = requests.post(ez_url + "brokerd_info/", json={'ip': bind_address, 'port': port})
     if r.status_code == 200:
         print("Connected to eZeeKonfigurator server")
+        print(r.json())
     else:
         print("Error connecting to server")
 
@@ -47,5 +43,4 @@ def broker_loop():
 
 
 if __name__ == "__main__":
-    application = django_setup()
     broker_loop()
