@@ -217,9 +217,9 @@ class ZeekBool(ZeekVal):
 
     def parse(self, val):
         if not isinstance(val, bool):
-            if val == "T":
+            if val == "T" or val == "True" or val == "true":
                 val = True
-            elif val == "F":
+            elif val == "F" or val == "False" or val == "false":
                 val = False
             else:
                 raise ValidationError("Unknown bool value: '%s'" % val)
