@@ -88,7 +88,7 @@ class ZeekBoolTestCase(ZeekAtomicValTestCase):
     ]
 
     invalid_input = [
-        "True", "False", "t", "f", "true", "false",
+        "t", "f",
         "1", "0", "1 == 1", "OR True",
         "Tru", "Falsee", ""
     ]
@@ -388,6 +388,28 @@ class ZeekTableTestCase(ZeekContainerValTestCase):
         ("table[count] of bool", {"1":"T","2":"F"}, '{[1] = T, [2] = F}'),
         ("table[bool] of bool", {"T":"T","F":"F"}, '{[T] = T, [F] = F}'),
     ]
+
+    def test_parse(self):
+        m = self.model().parse("table[count, port] of string", None)
+        self.assertEqual(m['index_types'], 'count, port')
+        self.assertEqual(m['yield_type'], 'string')
+
+    def test_create_empty_directly(self):
+        kwargs = self.model().parse("table[count, port] of string", {})
+        m = self.model(**kwargs)
+        m.save()
+
+        self.assertEqual(m.index_types, 'count, port')
+        self.assertEqual(m.yield_type, 'string')
+
+    def test_create_empty_top(self):
+        m = models.ZeekVal.create("table[count, port] of string", {})
+        self.assertEqual(str(m), "table[count, port] of string = {}")
+
+    def test_create_simple_empty(self):
+        m = models.ZeekVal.create("table[count] of string", {1: 'one'})
+        self.assertEqual(str(m), "table[count] of string = {[1] = \"one\"}")
+
 
 
 class ZeekTestImport(TestCase):

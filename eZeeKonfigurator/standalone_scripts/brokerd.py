@@ -82,6 +82,9 @@ def broker_loop():
                     type_name, value, doc = var_data
                     opt_list.append({'name': var_name, 'type': type_name, 'doc': doc, 'val': to_json(value)})
 
+
+            import pprint
+            pprint.pprint(opt_list, width=400)
             r = requests.post(ez_url + "sensor_option/", json={'sensor_uuid': uuid, 'options': opt_list})
             if r.status_code == 200:
                 print("Sent options to eZeeKonfigurator server")
