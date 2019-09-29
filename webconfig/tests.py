@@ -1,3 +1,4 @@
+import datetime
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -102,6 +103,11 @@ class ZeekIntTestCase(ZeekAtomicValTestCase):
         ("-9999999999", "-9999999999"),
         ("-0", "0"),
         ("+123", "123"),
+
+        (1234567890, "1234567890"),
+        (-9999999999, "-9999999999"),
+        (-0, "0"),
+        (+123, "123"),
     ]
 
     invalid_input = [
@@ -121,6 +127,13 @@ class ZeekCountTestCase(ZeekAtomicValTestCase):
         ("001234567890", "1234567890"),
         ("-0", "0"),
         ("+123", "123"),
+
+        (12345678901234567890, "12345678901234567890"),
+        (1234567890, "1234567890"),
+        (1234567890, "1234567890"),
+        (-0, "0"),
+        (+123, "123"),
+
     ]
 
     invalid_input = [
@@ -145,6 +158,17 @@ class ZeekDoubleTestCase(ZeekAtomicValTestCase):
         ("-9.99e+27", "-9.99e+27"),
         ("-9.99e-27", "-9.99e-27"),
 
+        (0.12345, "0.12345"),
+        (-8675309.867531, "-8675309.867531"),
+        (198721, "198721.0"),
+        (.123, "0.123"),
+        (.123000, "0.123"),
+        (1.0000, "1.0"),
+        (9.99e+27, "9.99e+27"),
+        (9.99e-27, "9.99e-27"),
+        (-9.99e+27, "-9.99e+27"),
+        (-9.99e-27, "-9.99e-27"),
+
     ]
 
     invalid_input = [
@@ -166,6 +190,15 @@ class ZeekTimeTestCase(ZeekAtomicValTestCase):
         ("-1569334218.0", "-1569334218.0"),
         ("-1569334218.0000", "-1569334218.0"),
         ("-1569334218.1234", "-1569334218.1234"),
+
+        (1569334218, "1569334218.0"),
+        (1569334218.0, "1569334218.0"),
+        (1569334218.0000, "1569334218.0"),
+        (1569334218.1234, "1569334218.1234"),
+        (-1569334218, "-1569334218.0"),
+        (-1569334218.0, "-1569334218.0"),
+        (-1569334218.0000, "-1569334218.0"),
+        (-1569334218.1234, "-1569334218.1234"),
     ]
 
     invalid_input = ZeekDoubleTestCase.invalid_input + [
@@ -178,56 +211,37 @@ class ZeekIntervalTestCase(ZeekAtomicValTestCase):
     type_name = "interval"
 
     valid_in_out = [
-        ("30.0 sec", "30.0"),
-        ("-30.0 sec", "-30.0"),
-        ("30.0 secs", "30.0"),
-        ("30 sec", "30.0"),
+        ("30.0", "30.0"),
+        ("-30.0", "-30.0"),
+        ("30", "30.0"),
 
-        ("1.5 mins", "90.0"),
-        ("2.0 min", "120.0"),
-        ("2.0 hrs", "7200.0"),
-        ("2.0 days", "172800.0"),
+        ("90", "90.0"),
+        ("120", "120.0"),
+        ("7200", "7200.0"),
+        ("172800.00", "172800.0"),
+        ("0.000001", "0.000001"),
+        ("0.001", "0.001"),
+        ("1", "1.0"),
 
-        ("0.0 usec", "0.0"),
-        ("0.0 msec", "0.0"),
-        ("0.0 sec", "0.0"),
-        ("0.0 min", "0.0"),
-        ("0.0 hr", "0.0"),
-        ("0.0 day", "0.0"),
+        ("-90", "-90.0"),
+        ("-120", "-120.0"),
+        ("-7200", "-7200.0"),
+        ("-172800.00", "-172800.0"),
+        ("-0.000001", "-0.000001"),
+        ("-0.001", "-0.001"),
+        ("-1", "-1.0"),
 
-        ("1.0 usec", "0.000001"),
-        ("1.0 usecs", "0.000001"),
-        ("1.0 msec", "0.001"),
-        ("1.0 msecs", "0.001"),
-        ("1.0 sec", "1.0"),
-        ("1.0 secs", "1.0"),
-
-        ("1.0 min", "60.0"),
-        ("1.0 mins", "60.0"),
-        ("1.0 hr", "3600.0"),
-        ("1.0 hrs", "3600.0"),
-        ("1.0 day", "86400.0"),
-        ("1.0 days", "86400.0"),
-
-        ("-1.0 usec", "-0.000001"),
-        ("-1.0 msec", "-0.001"),
-        ("-1.0 sec", "-1.0"),
-        ("-1.0 min", "-60.0"),
-        ("-1.0 hr", "-3600.0"),
-        ("-1.0 day", "-86400.0"),
-
-        ("7.0 days 6.0 hrs 5.0 min 4.0 secs 3.0 msec 2.0 usecs", "626704.003002"),
-        ("-7.0 days -6.0 hrs -5.0 min -4.0 secs -3.0 msec -2.0 usecs", "-626704.003002"),
+        (datetime.timedelta(seconds=-90), "-90.0"),
+        (datetime.timedelta(minutes=2), "120.0"),
+        (datetime.timedelta(hours=-2), "-7200.0"),
     ]
 
     invalid_input = [
-        "0s", "0.0s", "0.0", "1", "",
+        "0s", "0.0s", "",
 
         "1.0 sec 2.0 sec 3.0 secs",
         "1.0 sec 2.0 min 3.0 hr",
         "1.0 day 2.0 hrs 1.0 day",
-
-        "1234.0"
     ]
 
 
@@ -248,7 +262,6 @@ class ZeekStringTestCase(ZeekAtomicValTestCase):
     ]
 
     invalid_input = [
-        "\u1234",
     ]
 
 
@@ -261,6 +274,14 @@ class ZeekPortTestCase(ZeekAtomicValTestCase):
         ({"port": 65535, "proto": "tcp"}, "65535/tcp"),
         ({"port": 1234, "proto": "udp"}, "1234/udp"),
         ({"port": 255, "proto": "icmp"}, "255/icmp"),
+        ({"port": 123}, "123/unknown"),
+        ("0/tcp", "0/tcp"),
+        ("-0/tcp", "0/tcp"),
+        ("65535/tcp", "65535/tcp"),
+        ("1234/udp", "1234/udp"),
+        ("255/icmp", "255/icmp"),
+        ("123/unknown", "123/unknown"),
+
     ]
 
     invalid_input = [
@@ -281,9 +302,9 @@ class ZeekAddrTestCase(ZeekAtomicValTestCase):
         ("12.34.123.234", "12.34.123.234"),
 
         ("::", "::"),
-        ("1200:0000:AB00:1234:0000:2552:7777:1313", "1200:0000:AB00:1234:0000:2552:7777:1313"),
-        ("21DA:D3:0:2F3B:2AA:FF:FE28:9C5A", "21DA:D3:0:2F3B:2AA:FF:FE28:9C5A"),
-        ("fFfF::", "FFFF::"),
+        ("1200:0000:AB00:1234:0000:2552:7777:1313", "1200:0:ab00:1234:0:2552:7777:1313"),
+        ("21DA:D3:0:2F3B:2AA:FF:FE28:9C5A", "21da:d3:0:2f3b:2aa:ff:fe28:9c5a"),
+        ("fFfF::", "ffff::"),
     ]
 
     invalid_input = [
@@ -313,7 +334,6 @@ class ZeekSubnetTestCase(ZeekAtomicValTestCase):
 
     invalid_input = ZeekAddrTestCase.invalid_input + \
                     ["%s/1" % i for i in ZeekAddrTestCase.invalid_input] + \
-                    [i for i, e in ZeekAddrTestCase.valid_in_out] + \
                     [
         "0.0.0.0/0.0",
         "0.0.0.0/any",
@@ -471,3 +491,47 @@ class BrokerDaemonAPI(TestCase):
                                     json.dumps(data),
                                     content_type="application/json")
         self.assertEqual(response.status_code, 200)
+
+    def test_update_count(self):
+        self.test_sensor_create()
+        options = [
+            {'name': "Default::timeout", 'type': 'int', 'val': 3, 'doc': None},
+            {'name': "Default::timeout", 'type': 'int', 'val': 1, 'doc': None},
+            {'name': "Default::timeout", 'type': 'int', 'val': 1, 'doc': None},
+        ]
+
+        for o in options:
+            data = {'sensor_uuid': self.zs_uuid, 'options': [o]}
+            response = self.client.post(reverse('sensor_option', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}),
+                                    json.dumps(data),
+                                    content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+        # Check that we didn't create duplicates
+        self.assertEqual(models.Setting.objects.all().count(), 1)
+        self.assertEqual(models.Option.objects.all().count(), 1)
+
+        # Check that we have the right value
+        self.assertEqual(str(models.Setting.objects.all()[0]), "Default::timeout = 1")
+
+    def test_update_bool(self):
+        self.test_sensor_create()
+        options = [
+            {'name': "Default::timeout", 'type': 'bool', 'val': False, 'doc': None},
+            {'name': "Default::timeout", 'type': 'bool', 'val': True, 'doc': None},
+            {'name': "Default::timeout", 'type': 'bool', 'val': True, 'doc': None},
+        ]
+
+        for o in options:
+            data = {'sensor_uuid': self.zs_uuid, 'options': [o]}
+            response = self.client.post(reverse('sensor_option', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}),
+                                    json.dumps(data),
+                                    content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+        # Check that we didn't create duplicates
+        self.assertEqual(models.Setting.objects.all().count(), 1)
+        self.assertEqual(models.Option.objects.all().count(), 1)
+
+        # Check that we have the right value
+        self.assertEqual(str(models.Setting.objects.all()[0]), "Default::timeout = True")

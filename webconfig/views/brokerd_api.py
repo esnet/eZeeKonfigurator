@@ -100,15 +100,26 @@ def sensor_option(request, ver, brokerd_uuid):
             namespace, name = name.split('::', 1)
         o, created = models.Option.objects.get_or_create(namespace=namespace, name=name, sensor=s)
 
-        o.datatype = data['type']
-        if data['doc']:
-            o.docstring = data['doc']
+        o.datatype = opt['type']
+        if opt['doc']:
+            o.docstring = opt['doc']
         o.save()
 
-        setting, created = models.Setting.objects.get_or_create(option=o)
-
-
-
+        try:
+            setting = models.Setting.objects.get(option=o)
+            existing_vals = models.ZeekVal.filter(opt['type'], opt['val']).filter(settings=setting)
+            if len(existing_vals) == 1:
+                # We have a value that already matches
+                continue
+            elif len(existing_vals) == 0:
+                # We need to update the value
+                v = models.ZeekVal.create(opt['type'], opt['val'])
+                setting.value = v
+                setting.save()
+        except models.Setting.DoesNotExist:
+            v = models.ZeekVal.create(opt['type'], opt['val'])
+            setting = models.Setting.objects.create(option=o, value=v)
+            setting.save()
 
     return JsonResponse({'success': True})
 

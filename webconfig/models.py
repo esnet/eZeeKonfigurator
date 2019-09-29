@@ -1,5 +1,5 @@
 import datetime
-from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_ipv46_address, validate_ipv4_address, RegexValidator
@@ -100,12 +100,23 @@ class Option(models.Model):
     docstring = models.CharField(max_length=1000, blank=True, null=True)
     sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
 
+    def __str__(self):
+        if self.namespace != "GLOBAL":
+            name = "%s::%s" % (self.namespace, self.name)
+        else:
+            name = self.name
+
+        return name
+
 
 class Setting(models.Model):
     option = models.ForeignKey('Option', on_delete=models.CASCADE)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     value = GenericForeignKey()
+
+    def __str__(self):
+        return "%s = %s" % (self.option, self.value)
 
 
 # Zeek data types
@@ -157,6 +168,9 @@ class Setting(models.Model):
 
 class ZeekVal(models.Model):
     """Abstract base class for Zeek values."""
+    # Which setting(s) do we belong to?
+    settings = GenericRelation(Setting)
+
     # Our value can be in a parent value for composite types.
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
     object_id = models.PositiveIntegerField(null=True)
@@ -165,9 +179,16 @@ class ZeekVal(models.Model):
     @classmethod
     def create(cls, type_name, val):
         model = get_model_for_type(type_name)
-        if isinstance(val, str):
-            return model().parse(type_name, val)
-        return model().json_parse(type_name, val)
+        kwargs = model().parse(val)
+        m = model(**kwargs)
+        m.save()
+        return m
+
+    @classmethod
+    def filter(cls, type_name, val):
+        model = get_model_for_type(type_name)
+        kwargs = model().parse(val)
+        return model.objects.filter(**kwargs)
 
     def __str__(self):
         return str(self.v)
@@ -190,22 +211,20 @@ class ZeekBool(ZeekVal):
             return "T"
         return "F"
 
-    def json_parse(self, type_name, json_val):
-        if not isinstance(json_val, bool):
-            raise ValidationError("Expecting bool, got '%s'" % str(json_val))
+    def parse_native_type(self, val):
+        assert isinstance(val, bool), "trying to parse '%s' as bool" % type(val)
+        return {"v": val}
 
-        self.v = json_val
-        return self
+    def parse(self, val):
+        if not isinstance(val, bool):
+            if val == "T":
+                val = True
+            elif val == "F":
+                val = False
+            else:
+                raise ValidationError("Unknown bool value: '%s'" % val)
 
-    def parse(self, type_name, string_val):
-        assert type_name == "bool", "Trying to parse type '%s' as bool." % type_name
-        if string_val is "T":
-            self.v = True
-        elif string_val is "F":
-            self.v = False
-        else:
-            raise ValidationError("Unknown bool value: '%s'" % string_val)
-        return self
+        return self.parse_native_type(val)
 
 
 # typedef int64 bro_int_t;
@@ -215,31 +234,24 @@ class ZeekInt(ZeekVal):
     max_int = 9223372036854775807
     min_int = -max_int
 
-    def json_parse(self, type_name, json_val):
-        assert type_name == "int", "Trying to parse type '%s' as int." % type_name
+    def parse_native_type(self, val):
+        assert isinstance(val, int), "trying to parse '%s' as int" % type(val)
 
-        if not isinstance(json_val, int):
-            raise ValidationError("Expecting int, got '%s'" % str(json_val))
+        if val > self.max_int:
+            raise ValidationError("Value too large for an int: %d" % val)
+        elif val < self.min_int:
+            raise ValidationError("Value too small for an int: %d" % val)
 
-        self.v = json_val
-        if self.v > self.max_int:
-            raise ValidationError("Value too large for an int: %d" % self.v)
-        elif self.v < self.min_int:
-            raise ValidationError("Value too small for an int: %d" % self.v)
-        return self
+        return {"v": val}
 
-    def parse(self, type_name, string_val):
-        assert type_name == "int", "Trying to parse type '%s' as int." % type_name
-        try:
-            self.v = int(string_val)
-        except ValueError as e:
-            raise ValidationError(e)
+    def parse(self, val):
+        if not isinstance(val, int):
+            try:
+                val = int(val)
+            except ValueError as e:
+                raise ValidationError(e)
 
-        if self.v > self.max_int:
-            raise ValidationError("Value too large for an int: %d" % self.v)
-        elif self.v < self.min_int:
-            raise ValidationError("Value too small for an int: %d" % self.v)
-        return self
+        return self.parse_native_type(val)
 
 
 # typedef uint64 bro_uint_t;
@@ -263,38 +275,33 @@ class ZeekCount(ZeekVal):
     def __str__(self):
         return self.zeek_export()
 
-    def json_parse(self, type_name, json_val):
-        assert type_name == "count", "Trying to parse type '%s' as count." % type_name
+    def parse_native_type(self, val):
+        assert isinstance(val, int), "trying to parse '%s' as int" % type(val)
 
-        if not isinstance(json_val, int):
-            raise ValidationError("Expecting int, got '%s'" % str(json_val))
+        if val < 0:
+            raise ValidationError("Got negative value for count '%s'" % str(val))
 
-        if json_val < 0:
-            raise ValidationError("Got negative value for count '%s'" % str(json_val))
+        v_msb, v_lsb = self.convert_to_vals(val)
+        return {'v_msb': v_msb, 'v_lsb': v_lsb}
 
-        self.set_vals(json_val)
-        return self
+    def parse(self, val):
+        if not isinstance(val, int):
+            try:
+                val = int(val)
+            except ValueError as e:
+                raise ValidationError(e)
 
-    def parse(self, type_name, string_val):
-        assert type_name == "count", "Trying to parse type '%s' as count." % type_name
+        return self.parse_native_type(val)
 
-        try:
-            i = int(string_val)
-        except ValueError as e:
-            raise ValidationError(e)
-
-        if i < 0:
-            raise ValidationError("Negative number passed to count")
-
-        self.set_vals(i)
-        return self
-
-    def set_vals(self, value):
+    def convert_to_vals(self, value):
+        v_msb = 0
         if value > self.max_int:
-            self.v_lsb = self.max_int
-            self.v_msb = value - self.max_int
+            v_lsb = self.max_int
+            v_msb = value - self.max_int
         else:
-            self.v_lsb = value
+            v_lsb = value
+
+        return (v_msb, v_lsb)
 
     def clean_fields(self, exclude=None):
         # We can't have negatives
@@ -313,22 +320,19 @@ class ZeekDouble(ZeekVal):
     """A value with Zeek 'double' type. Double-precision floating-point number."""
     v = models.FloatField()
 
-    def json_parse(self, type_name, json_val):
-        assert type_name == "double", "Trying to parse type '%s' as double." % type_name
+    def parse_native_type(self, val):
+        assert isinstance(val, float), "trying to parse '%s' as float" % type(val)
 
-        if not isinstance(json_val, float):
-            raise ValidationError("Expecting float, got '%s'" % str(json_val))
+        return {'v': val}
 
-        self.v = json_val
-        return self
+    def parse(self, val):
+        if not isinstance(val, float):
+            try:
+                val = float(val)
+            except ValueError as e:
+                raise ValidationError(e)
 
-    def parse(self, type_name, string_val):
-        assert type_name == "double", "Trying to parse type '%s' as double." % type_name
-        try:
-            self.v = float(string_val)
-        except ValueError as e:
-            raise ValidationError(e)
-        return self
+        return self.parse_native_type(val)
 
 
 # This is a double, representing seconds since the epoch
@@ -339,13 +343,19 @@ class ZeekTime(ZeekVal):
     def zeek_export(self):
         return str(self.v.timestamp())
 
-    def parse(self, type_name, string_val):
-        assert type_name == "time", "Trying to parse type '%s' as time." % type_name
-        try:
-            self.v = make_aware(datetime.datetime.fromtimestamp(float(string_val)))
-        except (ValueError, OverflowError) as e:
-            raise ValidationError(e)
-        return self
+    def parse_native_type(self, val):
+        assert isinstance(val, datetime.datetime), "trying to parse '%s' as datetime object" % type(val)
+
+        return {'v': val}
+
+    def parse(self, val):
+        if not isinstance(val, datetime.datetime):
+            try:
+                val = make_aware(datetime.datetime.fromtimestamp(float(val)))
+            except (ValueError, OverflowError) as e:
+                raise ValidationError(e)
+
+        return self.parse_native_type(val)
 
 
 # {FLOAT}{OWS}day(s?)	RET_CONST(new IntervalVal(atof(yytext),Days))
@@ -357,57 +367,43 @@ class ZeekTime(ZeekVal):
 class ZeekInterval(ZeekVal):
     """A value with Zeek 'interval' type. Number of seconds, stored as a double."""
     v = models.FloatField("Number of seconds")
-    units = [('day', 24*60*60.0), ('hr', 60*60.0), ('min', 60.0), ('sec', 1.0), ('msec', 1.0/1000), ('usec', 1.0/1000/1000)]
 
     def zeek_export(self):
-        float_repr = "%f" % (self.v)
+        float_repr = "%.9f" % self.v
         float_repr = float_repr.rstrip('0')
-        if float_repr[-1] is '.':
+        if float_repr[-1]  == '.':
             float_repr += "0"
         return float_repr
 
     def __str__(self):
         return self.zeek_export()
 
-    def parse(self, type_name, string_val):
-        assert type_name == "interval", "Trying to parse type '%s' as interval." % type_name
-        # We're parsing something like "5.0 days 5.0 hrs 5.0 mins 5.0 secs 5.0 msecs 4.0 usecs"
-        num = 0.0
-        data = string_val.split(' ')
-        if not len(data) or ( len(data) % 2 != 0 ):
-            raise ValidationError("Could not parse '%s' as an interval" % string_val)
+    def parse_native_type(self, val):
+        assert isinstance(val, datetime.timedelta), "trying to parse '%s' as datetime.timedelta" % type(val)
 
-        for name, size in self.units:
-            if data[1] == name or data[1] == (name + "s"):
-                num += float(data[0]) * size
-                # Pop the first two elements off
-                data.pop(0)
-                data.pop(0)
-                if not data:
-                    break
-        else:
-            raise ValidationError("Could not parse '%s' as an interval" % string_val)
+        return {'v': val.total_seconds()}
 
-        self.v = num
-        return self
+    def parse(self, val):
+        if not isinstance(val, datetime.timedelta):
+            try:
+                val = datetime.timedelta(seconds=float(val))
+            except ValueError as e:
+                raise ValidationError(e)
+
+        return self.parse_native_type(val)
 
 
 class ZeekString(ZeekVal):
     """A value with Zeek 'string' type."""
     v = models.CharField(max_length=64*1024)
 
-    def parse(self, type_name, string_val):
-        assert type_name == "string", "Trying to parse type '%s' as string. %d" % (type_name, len(type_name))
-        for c in string_val:
-            if ord(c) > 255:
-                raise ValidationError("Could not parse value '%s' as ASCII string." % string_val)
-        self.v = string_val
-        return self
+    def parse_native_type(self, val):
+        assert isinstance(val, str), "trying to parse '%s' as string" % type(val)
 
-    def json_parse(self, type_name, json_val):
-        assert isinstance(json_val, str), "Trying to parse type '%s' as string." % type_name
+        return {'v': val}
 
-        return self.parse(type_name, json_val)
+    def parse(self, val):
+        return self.parse_native_type(val)
 
     def zeek_export(self):
         result = ""
@@ -423,52 +419,58 @@ class ZeekString(ZeekVal):
 class ZeekPort(ZeekVal):
     """A value with Zeek 'port' type. Port number and protocol {tcp, udp, icmp}"""
     num = models.PositiveIntegerField()
-    proto = models.CharField(max_length=2, choices=[('t', "tcp"), ('u', "udp"), ('i', "icmp")])
+    proto = models.CharField(max_length=1, choices=[('t', "tcp"), ('u', "udp"), ('i', "icmp"), ('?', "unknown")], default='?')
 
-    def json_parse(self, type_name, json_val):
-        assert type_name == "port", "Trying to parse type '%s' as port." % type_name
+    def parse_native_type(self, val):
+        # We don't really have a native type for this, so we'll parse a dict of {'port': 22, 'proto': 'tcp'}
+        assert isinstance(val, dict), "trying to parse '%s' as dict" % type(val)
+
         try:
-            n = json_val['port']
-            p = json_val['proto']
+            n = val['port']
+            p = val.get('proto', 'unknown')
         except (KeyError, TypeError):
-            raise ValidationError("Could not parse '%s' as port." % json_val)
+            raise ValidationError("Could not parse '%s' as port." % str(val))
 
-        return self.parse(type_name, "%d/%s" % (n, p))
+        if not isinstance(n, int):
+            try:
+                n = int(n)
+            except ValueError:
+                raise ValidationError("Could not parse '%s' as port." % str(val))
 
-    def parse(self, type_name, string_val):
-        assert type_name == "port", "Trying to parse type '%s' as port." % type_name
+        if p.lower() in ['tcp', 'udp', 'icmp']:
+            p = p.lower()[0]
+        elif p.lower() == 'unknown':
+            p = '?'
+        else:
+            raise ValidationError("Could not parse '%s' as port." % str(val))
 
-        # Sometimes we get this as a string?
-        if string_val.startswith("{") and string_val.endswith("}"):
-            return self.json_parse(type_name, json.loads(string_val))
-
-        data = string_val.split('/')
-        if len(data) != 2:
-            raise ValidationError("Could not parse '%s' as port." % string_val)
-        n, p = data
-
-        try:
-            n = int(n)
-        except ValueError:
-            raise ValidationError("Could not parse '%s' as port." % string_val)
-
-        if p.lower() not in ['tcp', 'udp', 'icmp']:
-            raise ValidationError("Unknown protocol: %s" % p)
-        self.proto = p.lower()[0]
-
-        if self.proto is 'i':
+        if p == 'i':
             if n < 0 or n > 255:
                 raise ValidationError("ICMP port number out of range: %d" % n)
         else:
             if n < 0 or n > 65535:
                 raise ValidationError("Port number out of range: %d" % n)
 
-        self.num = n
+        return {'num': n, 'proto': p}
 
-        return self
+    def parse(self, val):
+        if not isinstance(val, dict):
+            data = val.split('/')
+            if len(data) != 2:
+                raise ValidationError("Could not parse '%s' as port." % val)
+            n, p = data
+
+            val = {'port': n, 'proto': p}
+
+        return self.parse_native_type(val)
 
     def __str__(self):
-        return "%d/%s" % (self.num, self.get_proto_display())
+        if self.proto:
+            p = self.get_proto_display()
+        else:
+            p = "unknown"
+        return "%d/%s" % (self.num, p)
+
 
     def zeek_export(self):
         return str(self)
@@ -478,14 +480,21 @@ class ZeekAddr(ZeekVal):
     """A value with Zeek 'addr' type. IPv4 of IPv6 address."""
     v = models.GenericIPAddressField()
 
-    def parse(self, type_name, string_val):
-        assert type_name == "addr", "Trying to parse type '%s' as addr." % type_name
-        self.v = string_val
-        validate_ipv46_address(self.v)
-        return self
+    def parse_native_type(self, val):
+        assert isinstance(val, ipaddress.IPv4Address) or isinstance(val, ipaddress.IPv6Address), "trying to parse '%s' as ipaddress" % type(val)
 
-    def zeek_export(self):
-        return str(self).upper()
+        return {'v': val.compressed.lower()}
+
+    def parse(self, val):
+        if not (isinstance(val, ipaddress.IPv4Address) or isinstance(val, ipaddress.IPv6Address)):
+            try:
+                val = ipaddress.ip_address(val)
+            except ValueError:
+                raise ValidationError("Could not parse '%s' as addr" % val)
+        return self.parse_native_type(val)
+
+    def __str__(self):
+        return self.v.compressed.lower()
 
 
 class ZeekSubnet(ZeekVal):
@@ -493,58 +502,40 @@ class ZeekSubnet(ZeekVal):
     v = models.GenericIPAddressField()
     cidr = models.PositiveSmallIntegerField()
 
-    def parse(self, type_name, string_val):
-        assert type_name == "subnet", "Trying to parse type '%s' as subnet." % type_name
+    def parse_native_type(self, val):
+        assert isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network), "trying to parse '%s' as ipnetwork" % type(val)
 
-        try:
-            i = ipaddress.ip_network(string_val, strict=False)
-        except ValueError:
-            raise ValidationError("Could not parse '%s' as subnet." % string_val)
+        return {'v': val.network_address.compressed.lower(), 'cidr': val.prefixlen}
 
-        data = string_val.split('/')
-        if len(data) != 2:
-            raise ValidationError("Could not parse '%s' as subnet." % string_val)
-        v, cidr = data
-
-        try:
-            cidr = int(cidr)
-        except ValueError:
-            raise ValidationError("Incorrect subnet mask %s" % cidr)
-
-        try:
-            validate_ipv4_address(v)
-        except ValidationError:
-            validate_ipv46_address(v)
-            if cidr < 0 or cidr > 128:
-                raise ValidationError("Incorrect subnet mask %s" % cidr)
-        else:
-            if cidr < 0 or cidr > 32:
-                raise ValidationError("Incorrect subnet mask %s" % cidr)
-        self.cidr = cidr
-        self.v = i[0].compressed
-
-        return self
+    def parse(self, val):
+        if not (isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network)):
+            try:
+                val = ipaddress.ip_network(val, strict=False)
+            except ValueError:
+                raise ValidationError("Could not parse '%s' as subnet" % val)
+        return self.parse_native_type(val)
 
     def __str__(self):
-        if ':' in self.v:
-            return "[%s]/%s" % (self.v, self.cidr)
-        else:
-            return "%s/%s" % (self.v, self.cidr)
+        return "%s/%d" % (self.v, self.cidr)
 
     def zeek_export(self):
-        return str(self)
+        if ':' in self.v:
+            f = "[%s]/%d"
+        else:
+            f = "%s/%d"
+        return f % (self.v, self.cidr)
 
 
 class ZeekEnum(ZeekVal):
     """A value with Zeek 'enum' type. We're just storing the string."""
     v = models.CharField(max_length=1024)
 
-    def parse(self, type_name, string_val):
-        assert type_name == "enum", "Trying to parse type '%s' as enum." % type_name
+    def parse_native_type(self, val):
+        assert isinstance(val, str), "trying to parse '%s' as a string" % type(val)
 
-        data = string_val.split('::')
+        data = val.split('::')
         if len(data) > 2:
-            raise ValidationError("Could not parse '%s' as enum" % string_val)
+            raise ValidationError("Could not parse '%s' as enum" % val)
         elif len(data) == 2:
             namespace, value = data
             RegexValidator(regex=r'^[A-Za-z_][A-Za-z_0-9]*$')(namespace)
@@ -558,8 +549,10 @@ class ZeekEnum(ZeekVal):
         else:
             result = value
 
-        self.v = result
-        return self
+        return {'v': result}
+
+    def parse(self, val):
+        return self.parse_native_type(val)
 
 
 class ZeekPattern(ZeekVal):
@@ -567,7 +560,7 @@ class ZeekPattern(ZeekVal):
     v = models.CharField(max_length=1024)
     is_case_insensitive = models.BooleanField(default=False)
 
-    def parse(self, type_name, string_val):
+    def parse(self, type_name, val):
         assert type_name == "pattern", "Trying to parse type '%s' as pattern." % type_name
 
 
@@ -609,7 +602,7 @@ class ZeekContainer(ZeekVal):
         return self._format("zeek_export")
 
     @staticmethod
-    def parse(type_name, string_val):
+    def parse(type_name, val):
         raise NotImplementedError("Parsing a complex type from a string isn't supported.")
 
     def json_parse(self, type_name, json_val):
@@ -657,7 +650,7 @@ class ZeekTable(ZeekContainer):
                 index_elem.save()
 
     @staticmethod
-    def parse(type_name, string_val):
+    def parse(type_name, val):
         raise NotImplementedError("Parsing a complex type from a string isn't supported.")
 
 
@@ -721,7 +714,7 @@ class ZeekSet(ZeekContainer):
                 index_elem.save()
 
     @staticmethod
-    def parse(type_name, string_val):
+    def parse(type_name, val):
         raise NotImplementedError("Parsing a complex type from a string isn't supported.")
 
     def _format(self, string_function):
@@ -767,7 +760,7 @@ class ZeekVector(ZeekContainer):
                 index_elem.save()
 
     @staticmethod
-    def parse(type_name, string_val):
+    def parse(type_name, val):
         raise NotImplementedError("Parsing a complex type from a string isn't supported.")
 
 
@@ -787,7 +780,7 @@ class ZeekVector(ZeekContainer):
 #     """A collection of several ZeekVectorElements"""
 #     yield_type = models.CharField(max_length=100)
 #
-#     def parse(self, type_name, string_val):
+#     def parse(self, type_name, val):
 #         if not type_name.startswith('vector of '):
 #             raise ValidationError("Invalid type '%s' passed to vector." % type_name)
 #
@@ -798,10 +791,10 @@ class ZeekVector(ZeekContainer):
 #         self.yield_type = yield_type
 #         self.save()
 #
-#         for i in range(len(string_val)):
-#             model = ZeekVal.objects.create(yield_type, string_val[i])
+#         for i in range(len(val)):
+#             model = ZeekVal.objects.create(yield_type, val[i])
 #             if not model:
-#                 raise ValidationError("Could not parse vector element '%s' for vector of '%s'" %(string_val[i], yield_type))
+#                 raise ValidationError("Could not parse vector element '%s' for vector of '%s'" %(val[i], yield_type))
 #             model.save()
 #             elem = ZeekVectorElement(index=i, v=model, parent=self)
 #             elem.save()
