@@ -18,7 +18,7 @@ eZeeKonfigurator: Zeek Config Manager
   <tbody>
     {% for i in values %}
     <tr>
-      <th scope="row"><a href="{% url 'edit_option' id=i.pk%}"{% if i.option.namespace %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }}</th>
+        <th scope="row"><a href="{% url 'edit_option' id=i.pk%}">{% if i.option.namespace %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }}</a></th>
         <td>{% if i.value|length < 100 %}{{ i.value|linebreaksbr }}{% else %}&lt;Value too long to display&gt;{% endif %}</td>
       <td>{{ i.option.datatype }}</td>
       <td>{{ i.option.docstring }}</td>
