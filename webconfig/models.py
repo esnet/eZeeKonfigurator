@@ -567,8 +567,9 @@ class ZeekPattern(ZeekVal):
     def parse_native_type(self, type_name, val):
         assert isinstance(val, list), "trying to parse '%s' as a list (pattern)" % type(val)
 
-        self.save()
+        return {}
 
+    def create_children(self, val):
         for i in range(len(val)):
             v = ZeekPatternElement(v=val[i], index_offset=i)
             v.parent = self
