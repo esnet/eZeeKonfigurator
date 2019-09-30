@@ -625,6 +625,9 @@ class ZeekRecordField(ZeekVal):
     val = GenericForeignKey('record_elem_ctype', 'record_elem_objid')
 
     def _format(self, string_function):
+        if not self.record_elem_ctype:
+            return "$" + self.name + " = <NOT SET>"
+
         m = self.record_elem_ctype.model_class()
         try:
             val = m.objects.get(content_type__model="zeekrecordfield", object_id=self.pk)
@@ -635,7 +638,6 @@ class ZeekRecordField(ZeekVal):
 
     def __str__(self):
         return self._format('__str__')
-
 
 
 class ZeekContainer(ZeekVal):
