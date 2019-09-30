@@ -96,8 +96,8 @@ class BrokerDaemon(models.Model):
 
 class Option(models.Model):
     namespace = models.CharField(max_length=100, default="GLOBAL")
-    name = models.CharField(max_length=100)
-    datatype = models.CharField(max_length=100)
+    name = models.CharField(max_length=256)
+    datatype = models.CharField(max_length=512)
     docstring = models.CharField(max_length=1000, blank=True, null=True)
     sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
 
