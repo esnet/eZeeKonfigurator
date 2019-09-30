@@ -562,11 +562,35 @@ class ZeekEnum(ZeekVal):
 
 class ZeekPattern(ZeekVal):
     """A value with Zeek 'pattern' type. A regex."""
-    v = models.CharField(max_length=1024)
-    is_case_insensitive = models.BooleanField(default=False)
+    # This is a list of patterns OR-ed together. Patterns point here.
+
+    def parse_native_type(self, type_name, val):
+        assert isinstance(val, list), "trying to parse '%s' as a list (pattern)" % type(val)
+
+        self.save()
+
+        for i in range(len(val)):
+            v = ZeekPatternElement(v=val[i], index_offset=i)
+            v.parent = self
+            v.save()
 
     def parse(self, type_name, val):
-        assert type_name == "pattern", "Trying to parse type '%s' as pattern." % type_name
+        return self.parse_native_type(type_name, val)
+
+    def _format(self, str_function):
+        r = ""
+        for p in ZeekPatternElement.objects.filter(content_type__model="zeekpattern", object_id=self.pk).order_by('index_offset'):
+            r += p.v + " | "
+
+        if r:
+            r = r[:-3]
+        return r
+
+
+class ZeekPatternElement(ZeekVal):
+    """A single element within a pattern."""
+    v = models.CharField(max_length=1024)
+    index_offset = models.PositiveIntegerField()
 
 
 class ZeekRecord(ZeekVal):
@@ -809,6 +833,7 @@ class ZeekSet(ZeekContainer):
     def __str__(self):
         return self._format('__str__')
 
+
 class ZeekVector(ZeekContainer):
     """A value with Zeek 'vector' type. table[count] of ..."""
 
@@ -899,8 +924,7 @@ atomic_type_mapping = {
     'interval': ZeekInterval,
     'time': ZeekTime,
 
-    # TODO
-    'pattern': ZeekString,
+    'pattern': ZeekPattern,
     'string': ZeekString,
 
     'enum': ZeekEnum,
