@@ -605,8 +605,12 @@ class ZeekRecord(ZeekVal):
         """The logic is very similar, so we just handle this once for either str or zeek_export."""
         result = "["
         for record_field in ZeekRecordField.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk).order_by('index_pos'):
-            result += getattr(record_field, string_function)() + ", "
-        result = result[:-2] + "]"
+            field_val = getattr(record_field, string_function)()
+            if field_val:
+                result += field_val + ", "
+
+        if len(result) > 1:
+            result = result[:-2] + "]"
         return result
 
     def __str__(self):
@@ -626,14 +630,14 @@ class ZeekRecordField(ZeekVal):
 
     def _format(self, string_function):
         if not self.record_elem_ctype:
-            return "$" + self.name + " = <NOT SET>"
+            return None
 
         m = self.record_elem_ctype.model_class()
         try:
             val = m.objects.get(content_type__model="zeekrecordfield", object_id=self.pk)
             result = "$" + self.name + " = " + getattr(val, string_function)()
         except m.DoesNotExist:
-            result = "$" + self.name + " = <NOT SET>"
+            return None
         return result
 
     def __str__(self):
