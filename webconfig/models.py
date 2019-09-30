@@ -648,10 +648,10 @@ class ZeekTable(ZeekContainer):
                 index_elem = ZeekTableIndexElement(index_pos=index_pos, y=table_val, v=index_elem_val)
                 index_elem.parent = self
                 index_elem.save()
-
-    def _format(self, format):
-        vals = ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk)
-        return str(vals)
+    #
+    # def _format(self, format):
+    #     vals = ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk)
+    #     return str(vals)
 
 
 class ZeekTableVal(ZeekVal):
@@ -678,7 +678,7 @@ class ZeekTableIndexElement(ZeekVal):
     v = GenericForeignKey('index_elem_ctype', 'index_elem_objid')
 
     # This points to our yield value
-    y = models.ForeignKey('ZeekTableVal', on_delete=models.CASCADE)
+    y = models.ForeignKey('ZeekTableVal', on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return str(self.v)
@@ -695,39 +695,40 @@ class ZeekSet(ZeekContainer):
     type_name = "set"
     yield_type = models.CharField(max_length=1024, null=True, blank=True)
 
-    # We expect this to be a set
-    def json_parse_elements(self, index_type_list, list_val):
-        for i in list_val:
+    def create_children(self, val):
+        assert isinstance(val, list), "trying to parse '%s' as a list" % type(val)
+
+        # We don't store this, so we need to rebuild it
+        index_type_list = get_index_types("set[%s]" % self.index_types)
+
+        for v in val:
             table_val = ZeekTableVal(parent=self)
             table_val.save()
-            for index_pos in range(len(index_type_list)):
 
+            for index_pos in range(len(index_type_list)):
                 # This element of the index points to something, e.g. [count, port] => 2, 22/tcp.
                 # First we store the value it's pointing to.
                 index_elem_model = get_model_for_type(index_type_list[index_pos])
-                index_elem_val = index_elem_model.create(index_type_list[index_pos], i)
+                index_elem_val = index_elem_model.create(index_type_list[index_pos], v[index_pos])
                 index_elem_val.save()
 
                 # Now we store the index element itself.
-                index_elem = ZeekTableIndexElement(index_pos=index_pos, y=table_val, v=index_elem_val)
+                index_elem = ZeekTableIndexElement(index_pos=index_pos, v=index_elem_val)
                 index_elem.parent = self
                 index_elem.save()
 
-    @staticmethod
-    def parse(type_name, val):
-        raise NotImplementedError("Parsing a complex type from a string isn't supported.")
+
+    def parse(self, type_name, val):
+        return self.get_types(type_name)
 
     def _format(self, string_function):
         """The logic is very similar, so we just handle this once for either str or zeek_export."""
         result = "{"
         for table_val in ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk):
-            idx_vals = table_val.get_index_vals()
-            if len(idx_vals) > 1:
-                result += ",".join([getattr(i, string_function)() for i in idx_vals]) + ", "
-            else:
-                result += getattr(idx_vals[0], string_function)() + ", "
-
+            index_str = "[" + ",".join([getattr(i, string_function)() for i in table_val.get_index_vals()]) + "]"
+            result += "%s, " % index_str
         result = result[:-2] + "}"
+
         return result
 
 
