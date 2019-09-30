@@ -14,32 +14,32 @@ bind_port = os.environ.get("BROKERD_BIND_PORT", None)
 ez_url = os.environ.get("URL", "http://localhost:8000/brokerd_api/none") + "/v%s/" % client_version
 
 
-def to_json(val):
+def to_py(val):
     """Convert broker types to JSON"""
     if isinstance(val, bool) or isinstance(val, str) or isinstance(val, float) or isinstance(val, int):
-        return json.dumps(val)
+        return val
 
     elif isinstance(val, datetime.timedelta):
-        return json.dumps(float(val.seconds))
+        return float(val.seconds)
     elif isinstance(val, datetime.datetime):
-        return json.dumps(float(val.timestamp()))
+        return float(val.timestamp())
 
     elif isinstance(val, ipaddress.IPv4Address) or isinstance(val, ipaddress.IPv6Address):
-        return json.dumps(val.compressed.lower())
+        return val.compressed.lower()
     elif isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network):
-        return json.dumps(val.compressed.lower())
+        return val.compressed.lower()
 
     elif isinstance(val, broker.Count):
-        return json.dumps(int(str(val)))
+        return int(str(val))
     elif isinstance(val, broker.Enum) or isinstance(val, broker.Port):
-        return json.dumps(str(val))
+        return str(val)
 
     elif isinstance(val, set) or isinstance(val, tuple):
-        return json.dumps([to_json(x) for x in val])
+        return [to_py(x) for x in val]
     elif isinstance(val, dict):
-        return json.dumps({str(to_json(k)): to_json(v) for k, v in val.items()})
+        return {str(to_py(k)): to_py(v) for k, v in val.items()}
     else:
-        return "Unknown type", str(type(val))
+        raise ValueError("Unknown type", str(type(val)))
 
 
 
@@ -80,7 +80,7 @@ def broker_loop():
             for option in options:
                 for var_name, var_data in option.items():
                     type_name, value, doc = var_data
-                    opt_list.append({'name': var_name, 'type': type_name, 'doc': doc, 'val': to_json(value)})
+                    opt_list.append({'name': var_name, 'type': type_name, 'doc': doc, 'val': to_py(value)})
 
 
             import pprint
