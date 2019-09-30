@@ -16,7 +16,7 @@ ez_url = os.environ.get("URL", "http://localhost:8000/brokerd_api/none") + "/v%s
 
 def to_py(val):
     """Convert broker types to JSON"""
-    if isinstance(val, bool) or isinstance(val, str) or isinstance(val, float) or isinstance(val, int):
+    if isinstance(val, bool) or isinstance(val, str) or isinstance(val, bytes) or isinstance(val, float) or isinstance(val, int):
         return val
 
     elif isinstance(val, datetime.timedelta):
