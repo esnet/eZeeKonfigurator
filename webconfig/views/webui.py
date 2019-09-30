@@ -140,6 +140,10 @@ def list_options(request):
     return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by(Lower('option__namespace'), Lower('option__name'))})
 
 
+def edit_option(request, id):
+    return "TODO"
+
+
 def export_options(request, ver, sensor_uuid):
     response = render(request, 'export_options.html', {
         "values": models.Setting.objects.filter(option__sensor__authorized=True, option__sensor__uuid=sensor_uuid).order_by('option__namespace',
