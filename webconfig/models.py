@@ -587,6 +587,9 @@ class ZeekPattern(ZeekVal):
             r = r[:-3]
         return r
 
+    def __str__(self):
+        return self._format(__name__)
+
 
 class ZeekPatternElement(ZeekVal):
     """A single element within a pattern."""
