@@ -95,14 +95,14 @@ class BrokerDaemon(models.Model):
 
 
 class Option(models.Model):
-    namespace = models.CharField(max_length=100, default="GLOBAL")
+    namespace = models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=256)
     datatype = models.CharField(max_length=512)
     docstring = models.CharField(max_length=1000, blank=True, null=True)
     sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
 
     def __str__(self):
-        if self.namespace != "GLOBAL":
+        if self.namespace:
             name = "%s::%s" % (self.namespace, self.name)
         else:
             name = self.name
@@ -813,7 +813,11 @@ class ZeekSet(ZeekContainer):
                 # This element of the index points to something, e.g. [count, port] => 2, 22/tcp.
                 # First we store the value it's pointing to.
                 index_elem_model = get_model_for_type(index_type_list[index_pos])
-                index_elem_val = index_elem_model.create(index_type_list[index_pos], v[index_pos])
+                if len(index_type_list) > 1:
+                    curr_v = v[index_pos]
+                else:
+                    curr_v = v
+                index_elem_val = index_elem_model.create(index_type_list[index_pos], curr_v)
                 index_elem_val.save()
 
                 # Now we store the index element itself.
