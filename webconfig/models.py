@@ -420,6 +420,9 @@ class ZeekString(ZeekVal):
                 result += c
         return '"%s"' % result
 
+    def __str__(self):
+        return '"%s"' % self.v
+
 
 class ZeekPort(ZeekVal):
     """A value with Zeek 'port' type. Port number and protocol {tcp, udp, icmp}"""
@@ -700,7 +703,9 @@ class ZeekContainer(ZeekVal):
             index_str = "[" + ",".join([getattr(i, string_function)() for i in table_val.get_index_vals()]) + "]"
             yield_str = getattr(table_val.v, string_function)()
             result += "%s = %s, " % (index_str, yield_str)
-        result = result[:-2] + "}"
+        if len(result) > 1:
+            result = result[:-2]
+        result += "}"
         return result
 
     def __str__(self):
@@ -806,9 +811,6 @@ class ZeekSet(ZeekContainer):
         index_type_list = get_index_types("set[%s]" % self.index_types)
 
         for v in val:
-            table_val = ZeekTableVal(parent=self)
-            table_val.save()
-
             for index_pos in range(len(index_type_list)):
                 # This element of the index points to something, e.g. [count, port] => 2, 22/tcp.
                 # First we store the value it's pointing to.
@@ -818,12 +820,14 @@ class ZeekSet(ZeekContainer):
                 else:
                     curr_v = v
                 index_elem_val = index_elem_model.create(index_type_list[index_pos], curr_v)
-                index_elem_val.save()
 
                 # Now we store the index element itself.
                 index_elem = ZeekTableIndexElement(index_pos=index_pos, v=index_elem_val)
                 index_elem.parent = self
                 index_elem.save()
+
+                index_elem_val.parent = index_elem
+                index_elem_val.save()
 
     def parse(self, type_name, val):
         return self.get_types(type_name)
@@ -831,10 +835,21 @@ class ZeekSet(ZeekContainer):
     def _format(self, string_function):
         """The logic is very similar, so we just handle this once for either str or zeek_export."""
         result = "{"
-        for table_val in ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk):
-            index_str = "[" + ",".join([getattr(i, string_function)() for i in table_val.get_index_vals()]) + "]"
+        index_elems = ZeekTableIndexElement.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk).order_by('index_pos')
+        for index_elem in index_elems:
+            index_elem_model = index_elem.index_elem_ctype.model_class()
+            vals = index_elem_model.objects.filter(content_type__model="zeektableindexelement", object_id=index_elem.pk)
+
+            if len(vals) > 1:
+                index_str = "[" + ",".join([getattr(i, string_function)() for i in vals]) + "]"
+            elif len(vals) == 1:
+                index_str = getattr(vals[0], string_function)()
+            else:
+                index_str = "Unknown"
             result += "%s, " % index_str
-        result = result[:-2] + "}"
+        if len(result) > 2:
+            result = result[:-2]
+        result += "}"
 
         return result
 
