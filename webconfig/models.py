@@ -21,6 +21,7 @@ def get_model_for_type(type_name):
     composite = {'set[': ZeekSet,
                  'vector of ': ZeekVector,
                  'table[': ZeekTable,
+                 'record {': ZeekRecord,
                  }
 
     for c, m in composite.items():
@@ -568,6 +569,75 @@ class ZeekPattern(ZeekVal):
         assert type_name == "pattern", "Trying to parse type '%s' as pattern." % type_name
 
 
+class ZeekRecord(ZeekVal):
+    """A value with Zeek 'record' type. A value with key-value pairs, of differing yield types."""
+    type_name = "record"
+
+    field_types = models.CharField(max_length=1024)
+
+    def parse(self, type_name, val):
+        # record { arg:int; addl:int; }
+        r, args = type_name.split('{ ', 1)
+        args = args.rsplit('}', 1)[0]
+        return {'field_types': args}
+
+    def create_children(self, val):
+        s = self.field_types
+        for v in range(len(val)):
+            n = s.split(':', 1)[0]
+            s = s[len(n)+1:]
+            if s.startswith('record {'):
+                raise NotImplementedError("TODO: nested records")
+            else:
+                t = s.split('; ', 1)[0]
+                s = s[len(t)+2:]
+
+            field = ZeekRecordField.objects.create(name=n, val_type=t, index_pos=v, parent=self)
+            if val[v]:
+                zeek_val = ZeekVal.create(t, val[v])
+                zeek_val.parent = field
+                zeek_val.save()
+
+                field.val = zeek_val
+            field.save()
+
+    def _format(self, string_function):
+        """The logic is very similar, so we just handle this once for either str or zeek_export."""
+        result = "["
+        for record_field in ZeekRecordField.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk).order_by('index_pos'):
+            result += getattr(record_field, string_function)() + ", "
+        result = result[:-2] + "]"
+        return result
+
+    def __str__(self):
+        return self._format('__str__')
+
+
+class ZeekRecordField(ZeekVal):
+    """A field within a ZeekRecord."""
+    name = models.CharField(max_length=1024)
+    val_type = models.CharField(max_length=1024)
+    docstring = models.CharField(max_length=1024, blank=True, null=True)
+    index_pos = models.PositiveIntegerField()
+
+    record_elem_ctype = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="record_elem", null=True)
+    record_elem_objid = models.PositiveIntegerField(null=True)
+    val = GenericForeignKey('record_elem_ctype', 'record_elem_objid')
+
+    def _format(self, string_function):
+        m = self.record_elem_ctype.model_class()
+        try:
+            val = m.objects.get(content_type__model="zeekrecordfield", object_id=self.pk)
+            result = "$" + self.name + " = " + getattr(val, string_function)()
+        except m.DoesNotExist:
+            result = "$" + self.name + " = <NOT SET>"
+        return result
+
+    def __str__(self):
+        return self._format('__str__')
+
+
+
 class ZeekContainer(ZeekVal):
     """This is an abstract model for a container, such as a table, set or vector.
 
@@ -716,7 +786,6 @@ class ZeekSet(ZeekContainer):
                 index_elem = ZeekTableIndexElement(index_pos=index_pos, v=index_elem_val)
                 index_elem.parent = self
                 index_elem.save()
-
 
     def parse(self, type_name, val):
         return self.get_types(type_name)
