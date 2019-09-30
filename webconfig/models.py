@@ -806,6 +806,8 @@ class ZeekSet(ZeekContainer):
 
         return result
 
+    def __str__(self):
+        return self._format('__str__')
 
 class ZeekVector(ZeekContainer):
     """A value with Zeek 'vector' type. table[count] of ..."""
@@ -897,6 +899,8 @@ atomic_type_mapping = {
     'interval': ZeekInterval,
     'time': ZeekTime,
 
+    # TODO
+    'pattern': ZeekString,
     'string': ZeekString,
 
     'enum': ZeekEnum,
