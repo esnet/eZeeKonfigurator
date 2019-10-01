@@ -5,6 +5,7 @@ import json
 import os
 import requests
 
+batch_size = 5
 client_version = "1"
 
 topic = "/ezeekonfigurator/control"
@@ -47,6 +48,15 @@ def to_py(val):
         raise ValueError("Unknown type", str(type(val)))
 
 
+def send_options(uuid, opt_list):
+    import pprint
+    pprint.pprint(opt_list, width=400)
+    r = requests.post(ez_url + "sensor_option/", json={'sensor_uuid': uuid, 'options': opt_list})
+    if r.status_code == 200:
+        print("Sent options to eZeeKonfigurator server")
+    else:
+        print("Error sending options to server")
+
 
 def broker_loop():
     endpoint = broker.Endpoint()
@@ -86,16 +96,12 @@ def broker_loop():
                 for var_name, var_data in option.items():
                     type_name, value, doc = var_data
                     opt_list.append({'name': var_name, 'type': type_name, 'doc': doc, 'val': to_py(value)})
+                    if len(opt_list) > batch_size:
+                        send_options(uuid, opt_list)
+                        opt_list = []
 
-
-            import pprint
-            pprint.pprint(opt_list, width=400)
-            r = requests.post(ez_url + "sensor_option/", json={'sensor_uuid': uuid, 'options': opt_list})
-            if r.status_code == 200:
-                print("Sent options to eZeeKonfigurator server")
-            else:
-                print("Error sending options to server")
-
+            if opt_list:
+                send_options(uuid, opt_list)
 
 if __name__ == "__main__":
     broker_loop()
