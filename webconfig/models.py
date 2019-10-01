@@ -1,3 +1,4 @@
+from codecs import encode, decode
 import datetime
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -588,7 +589,7 @@ class ZeekPattern(ZeekVal):
     def _format(self, str_function):
         r = ""
         for p in ZeekPatternElement.objects.filter(content_type__model="zeekpattern", object_id=self.pk).order_by('index_offset'):
-            r += "/" + p.v + "/ |\n"
+            r += p.v.replace("\\", "") + " |\n"
 
         if r:
             r = r[:-3]
