@@ -588,7 +588,7 @@ class ZeekPattern(ZeekVal):
     def _format(self, str_function):
         r = ""
         for p in ZeekPatternElement.objects.filter(content_type__model="zeekpattern", object_id=self.pk).order_by('index_offset'):
-            r += "/%s/" % p.v + " | "
+            r += "/" + p.v + "/ | "
 
         if r:
             r = r[:-3]
@@ -639,7 +639,6 @@ class ZeekPattern(ZeekVal):
 
         parts.insert(0, val)
         return parts
-
 
 
 class ZeekPatternElement(ZeekVal):
@@ -747,15 +746,15 @@ class ZeekContainer(ZeekVal):
 
     def _format(self, string_function):
         """The logic is very similar, so we just handle this once for either str or zeek_export."""
-        result = "{"
+        result = ""
         for table_val in ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk):
             index_str = "[" + ",".join([getattr(i, string_function)() for i in table_val.get_index_vals()]) + "]"
             yield_str = getattr(table_val.v, string_function)()
-            result += "%s = %s, " % (index_str, yield_str)
-        if len(result) > 1:
-            result = result[:-2]
-        result += "}"
-        return result
+            result += "  %s = %s,\n" % (index_str, yield_str)
+        if not result:
+            return "{}"
+        result = result[:-2]
+        return "{\n%s\n}" % result
 
     def __str__(self):
         return self._format("__str__")
