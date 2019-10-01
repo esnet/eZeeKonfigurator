@@ -588,7 +588,7 @@ class ZeekPattern(ZeekVal):
     def _format(self, str_function):
         r = ""
         for p in ZeekPatternElement.objects.filter(content_type__model="zeekpattern", object_id=self.pk).order_by('index_offset'):
-            r += "/" + p.v + "/ | "
+            r += "/" + p.v + "/ |\n"
 
         if r:
             r = r[:-3]
