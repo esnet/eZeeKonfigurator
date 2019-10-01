@@ -6,7 +6,7 @@ from django.core.validators import validate_ipv46_address, validate_ipv4_address
 from django.db import models
 from django.utils.timezone import make_aware
 import ipaddress
-import json
+import re
 
 
 def get_model_for_type(type_name):
@@ -479,7 +479,6 @@ class ZeekPort(ZeekVal):
             p = "unknown"
         return "%d/%s" % (self.num, p)
 
-
     def zeek_export(self):
         return str(self)
 
@@ -502,7 +501,7 @@ class ZeekAddr(ZeekVal):
         return self.parse_native_type(type_name, val)
 
     def __str__(self):
-        return self.v.compressed.lower()
+        return str(self.v)
 
 
 class ZeekSubnet(ZeekVal):
@@ -567,16 +566,21 @@ class ZeekPattern(ZeekVal):
     """A value with Zeek 'pattern' type. A regex."""
     # This is a list of patterns OR-ed together. Patterns point here.
 
+    exact_format = "^?(%s)$?"
+    anywhere_format = "^?(.|\\n)*(%s)"
+
     def parse_native_type(self, type_name, val):
         assert isinstance(val, list), "trying to parse '%s' as a list (pattern)" % type(val)
 
         return {}
 
     def create_children(self, val):
-        for i in range(len(val)):
-            v = ZeekPatternElement(v=val[i], index_offset=i)
-            v.parent = self
-            v.save()
+        exact, anywhere = val
+        i = 0
+        for part in self.get_exact_parts(exact):
+            e = ZeekPatternElement(v=part, index_offset=i, parent=self)
+            e.save()
+            i += 1
 
     def parse(self, type_name, val):
         return self.parse_native_type(type_name, val)
@@ -584,7 +588,7 @@ class ZeekPattern(ZeekVal):
     def _format(self, str_function):
         r = ""
         for p in ZeekPatternElement.objects.filter(content_type__model="zeekpattern", object_id=self.pk).order_by('index_offset'):
-            r += p.v + " | "
+            r += "/%s/" % p.v + " | "
 
         if r:
             r = r[:-3]
@@ -593,9 +597,54 @@ class ZeekPattern(ZeekVal):
     def __str__(self):
         return self._format(__name__)
 
+    def zeek_export(self):
+        return str(self)
+
+    def strip_wrappers(self, val):
+        if val.startswith("^?(") and val.endswith(")$?"):
+            return val[3:-3]
+        elif val.startswith("(^?(") and val.endswith(")$?)"):
+            return val[4:-4]
+
+        raise ValidationError("Wrappers not found")
+
+    def get_last_elem_exact(self, val):
+        # Example: ^?(foo)$?)|(^?(bar)$?
+        m = re.search(r'\)+\$\?\)\|\(\^\?\((.*)\)\$\?\)$', val)
+        result = m.group(1)
+        # Our search is greedy, so we keep going until we're done
+        while ")$?)|(^?(" in result:
+            m = re.search(r'\)+\$\?\)\|\(\^\?\((.*)$', result)
+            result = m.group(1)
+
+        return result
+
+    def get_exact_parts(self, val):
+        # When Zeek appends to an existing pattern, it does:
+        # "(%s)|(^?(%s)$?)" % old, new
+
+        if not val.startswith("^?(") or not val.endswith(")$?"):
+            raise ValidationError("Could not parse '%s' as two exact parts" % val)
+
+        val = self.strip_wrappers(val)
+
+        parts = []
+
+        while ")$?)|(^?(" in val:
+            last_elem = self.get_last_elem_exact(val)
+            parts.insert(0, last_elem)
+            # We remove |(^?(%s)$?) % last_elem
+            val = val.replace("|(^?(%s)$?)" % last_elem, "")
+            val = self.strip_wrappers(val)
+
+        parts.insert(0, val)
+        return parts
+
+
 
 class ZeekPatternElement(ZeekVal):
     """A single element within a pattern."""
+
     v = models.CharField(max_length=1024)
     index_offset = models.PositiveIntegerField()
 

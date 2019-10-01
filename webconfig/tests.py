@@ -58,7 +58,9 @@ class ZeekContainerValTestCase(ZeekValTestCase):
                 if self.order_matters:
                     self.assertEqual(m.zeek_export(), export_val)
                 else:
-                    self.assertEqual(sorted(m.zeek_export()), sorted(export_val))
+                    for i in m.zeek_export():
+                        self.assertEqual(m.zeek_export(), export_val)
+                        self.assertIn(i, export_val)
 
     def test_invalid_input(self):
         if not self.model:
@@ -361,12 +363,49 @@ class ZeekEnumTestCase(ZeekAtomicValTestCase):
     ]
 
 
+class ZeekPatternTestCase(ZeekAtomicValTestCase):
+    type_name = "pattern"
+
+    exact_format = "^?(%s)$?"
+    anywhere_format = "^?(.|\\n)*(%s)"
+
+    def test_add_exact_foo(self):
+        p = "foo"
+        m = models.ZeekVal.create("pattern", [self.exact_format % p, self.anywhere_format % p])
+        m.save()
+        self.assertEqual(str(m), "/foo/")
+
+    def test_add_exact_foo_bar(self):
+        m = models.ZeekVal.create("pattern", [r"^?((^?(foo)$?)|(^?(bar)$?))$?", r"^?(.|\\n)*((^?(foo)$?)|(^?(bar)$?))"])
+        m.save()
+        self.assertEqual(str(m), "/foo/ | /bar/")
+
+
+    def test_add_foo_or_bar(self):
+        p = "foo|bar"
+        m = models.ZeekVal.create("pattern", [self.exact_format % p, self.anywhere_format % p])
+        m.save()
+        self.assertEqual(str(m), "/foo|bar/")
+
+    def test_parse_exact_foo_bar(self):
+        m = models.ZeekPattern()
+        self.assertEqual(m.get_exact_parts(r"^?(foo)$?"), ["foo"])
+        self.assertEqual(m.get_exact_parts(r"^?((^?(foo)$?)|(^?(bar)$?))$?"), ["foo", "bar"])
+        self.assertEqual(m.get_exact_parts(r"^?((^?((^?(foo)$?)|(^?(bar)$?))$?)|(^?(baz)$?))$?"), ["foo", "bar", "baz"])
+        self.assertEqual(m.get_exact_parts(r"^?((^?((^?((^?((^?(foo)$?)|(^?(bar)$?))$?)|(^?(baz)$?))$?)|(^?(qux)$?))$?)|(^?(quuz)$?))$?"),
+                         ['foo', 'bar', 'baz', 'qux', 'quuz'])
+        self.assertEqual(m.get_exact_parts(r"^?((^?((^?((^?((^?((^?((^?((^?((^?((^?((^?((^?((^?(foo)$?)|(^?(bar)$?))$?)|(^?(baz)$?))$?)|(^?(qux)$?))$?)|(^?(quuz)$?))$?)|(^?(corge)$?))$?)|(^?(grault)$?))$?)|(^?(garply)$?))$?)|(^?(waldo)$?))$?)|(^?(fred)$?))$?)|(^?(plugh)$?))$?)|(^?(xyzzy)$?))$?)|(^?(thud)$?))$?"),
+                         ['foo', 'bar', 'baz', 'qux', 'quuz', 'corge', 'grault', 'garply', 'waldo', 'fred', 'plugh', 'xyzzy', 'thud'])
+
+    valid_in_out = [(["^?(\/playground\/init\/login\/validate)$?", "^?(.|\n)*(\/playground\/init\/login\/validate)"], r"/\/playground\/init\/login\/validate/")]
+
+
 class ZeekSetTestCase(ZeekContainerValTestCase):
     model = models.ZeekSet
     order_matters = False
 
     valid_in_out = [
-        ("set[string]", {"1", "2", "3"}, '{"1", "2", "3"}'),
+        ("set[string]", ["1", "2", "3"], '{"1", "2", "3"}'),
         # ("set[string]", "{1}", "{1}"),
         # ("set[string]", "{}", "{}"),
         # ("set[string]", "{a, b, c}", "{a, b, c}"),
@@ -404,12 +443,11 @@ class ZeekTableTestCase(ZeekContainerValTestCase):
 
     def test_create_empty_top(self):
         m = models.ZeekVal.create("table[count, port] of string", {})
-        self.assertEqual(str(m), "table[count, port] of string = {}")
+        self.assertEqual(str(m), "{}")
 
     def test_create_simple_empty(self):
         m = models.ZeekVal.create("table[count] of string", {1: 'one'})
-        self.assertEqual(str(m), "table[count] of string = {[1] = \"one\"}")
-
+        self.assertEqual(str(m), "{[1] = \"one\"}")
 
 
 class ZeekTestImport(TestCase):
@@ -557,3 +595,18 @@ class BrokerDaemonAPI(TestCase):
 
         # Check that we have the right value
         self.assertEqual(str(models.Setting.objects.all()[0]), "Default::timeout = True")
+
+
+class ZeekRecordTestCase(TestCase):
+
+    def test_simple_parse(self):
+        m = models.ZeekRecord().parse("record { arg:int; addl:int; }", "blah")
+        self.assertEqual(m, {'field_types': {'arg': 'int', 'addl': 'int'}})
+
+    def test_create(self):
+        m = models.ZeekVal.create('record { arg:int; addl:int; }', [1, -1])
+        self.assertEqual(str(m), "[$arg = 1, $addl = -1]")
+
+    def test_create_table_of(self):
+        m = models.ZeekVal.create('table[count] of record { arg:int; addl:int; }', {1: [1, -1]})
+        self.assertEqual(str(m), "[$arg = 1, $addl = -1]")
