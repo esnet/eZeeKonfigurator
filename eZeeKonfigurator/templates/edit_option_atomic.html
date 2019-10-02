@@ -1,0 +1,20 @@
+{% extends "edit_option.html" %}
+{% load crispy_forms_tags %}
+
+{% block form %}
+ <form method="post">
+  <div class="form-group">
+    {% csrf_token %}
+    {{ form|crispy }}
+  </div>
+  <div class="form-group">
+    <label for="change_message">Change message</label>
+    <input type="text" class="form-control" id="change_message" placeholder="Increased timeout due to long-lived connections">
+      <small id="changeHelp" class="form-text text-muted">A message describing why the change was made.</small>
+  </div>
+    <button type="submit" class="btn btn-success">Save</button>
+</form>
+{% endblock %}
+{% block type_doc %}
+See Zeek documentation for <a href="https://docs.zeek.org/en/stable/script-reference/types.html#type-{{ type }}" class="alert-link">{{ type }} types</a>.
+{% endblock %}

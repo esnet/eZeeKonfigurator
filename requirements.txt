@@ -1,4 +1,8 @@
+aiohttp-sse-client
+channels
 Django==2.2.4
+django-crispy-forms
+django-eventstream
 selenium==3.141.0
 GitPython==3.0.2
 psycopg2

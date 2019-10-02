@@ -178,6 +178,8 @@ class ZeekVal(models.Model):
     object_id = models.PositiveIntegerField(null=True)
     parent = GenericForeignKey()
 
+    comment = models.CharField("Value comment", help_text="What is this significance of the chosen value?", max_length=1024, null=True, blank=True)
+
     @classmethod
     def create(cls, type_name, val):
         model = get_model_for_type(type_name)
@@ -202,6 +204,9 @@ class ZeekVal(models.Model):
     def zeek_export(self):
         return str(self.v)
 
+    def web_str(self):
+        return str(self)
+
     class Meta:
         abstract = True
 
@@ -210,7 +215,7 @@ class ZeekVal(models.Model):
 # F	RET_CONST(new Val(false, TYPE_BOOL))
 class ZeekBool(ZeekVal):
     """A value with Zeek 'bool' type. Valid options are 'T' or 'F'."""
-    v = models.BooleanField()
+    v = models.BooleanField("True?", )
 
     def zeek_export(self):
         if self.v:
@@ -232,11 +237,14 @@ class ZeekBool(ZeekVal):
 
         return self.parse_native_type(type_name, val)
 
+    def json(self):
+        return self.v
+
 
 # typedef int64 bro_int_t;
 class ZeekInt(ZeekVal):
     """A value with a Zeek 'int' type. Signed 64-bit int. Uses native Django support."""
-    v = models.BigIntegerField()
+    v = models.BigIntegerField("Value", )
     max_int = 9223372036854775807
     min_int = -max_int
 
@@ -259,6 +267,9 @@ class ZeekInt(ZeekVal):
 
         return self.parse_native_type(type_name, val)
 
+    def json(self):
+        return self.v
+
 
 # typedef uint64 bro_uint_t;
 # {D}		{
@@ -273,10 +284,11 @@ class ZeekCount(ZeekVal):
 
     v_msb = models.BigIntegerField(default=0)
     v_lsb = models.BigIntegerField()
+    v = models.CharField("value", max_length=20)
     max_int = 9223372036854775807
 
     def zeek_export(self):
-        return str(self.v_msb + self.v_lsb)
+        return self.v
 
     def __str__(self):
         return self.zeek_export()
@@ -287,8 +299,8 @@ class ZeekCount(ZeekVal):
         if val < 0:
             raise ValidationError("Got negative value for count '%s'" % str(val))
 
-        v_msb, v_lsb = self.convert_to_vals(val)
-        return {'v_msb': v_msb, 'v_lsb': v_lsb}
+        v_msb, v_lsb, v = self.convert_to_vals(val)
+        return {'v_msb': v_msb, 'v_lsb': v_lsb, 'v': v}
 
     def parse(self, type_name, val):
         if not isinstance(val, int):
@@ -307,7 +319,7 @@ class ZeekCount(ZeekVal):
         else:
             v_lsb = value
 
-        return (v_msb, v_lsb)
+        return v_msb, v_lsb, str(v_msb + v_lsb)
 
     def clean_fields(self, exclude=None):
         # We can't have negatives
@@ -315,16 +327,22 @@ class ZeekCount(ZeekVal):
             raise ValidationError("count must be positive")
 
     def clean(self):
-        # The data didn't get stored properly
+        self.v_msb, self.v_lsb, self.v = self.convert_to_vals(int(self.v))
         if self.v_msb and self.v_lsb != self.max_int:
             raise ValidationError("count must be stored as least-significant and most-significant halves")
+
+        return {'v_msb': self.v_msb, 'v_lsb': self.v_lsb, 'v': self.v}
+
+    def json(self):
+        return self.v_msb + self.v_lsb
+
 
 
 # {FLOAT}		RET_CONST(new Val(atof(yytext), TYPE_DOUBLE))
 # Uses C double behind the scenes, as does Python
 class ZeekDouble(ZeekVal):
     """A value with Zeek 'double' type. Double-precision floating-point number."""
-    v = models.FloatField()
+    v = models.FloatField("value", )
 
     def parse_native_type(self, type_name, val):
         assert isinstance(val, float), "trying to parse '%s' as float" % type(val)
@@ -340,11 +358,13 @@ class ZeekDouble(ZeekVal):
 
         return self.parse_native_type(type_name, val)
 
+    def json(self):
+        return self.v
 
 # This is a double, representing seconds since the epoch
 class ZeekTime(ZeekVal):
     """A value with Zeek 'time' type."""
-    v = models.DateTimeField()
+    v = models.DateTimeField("value", )
 
     def zeek_export(self):
         return str(self.v.timestamp())
@@ -362,6 +382,9 @@ class ZeekTime(ZeekVal):
                 raise ValidationError(e)
 
         return self.parse_native_type(type_name, val)
+
+    def json(self):
+        return self.v.timestamp()
 
 
 # {FLOAT}{OWS}day(s?)	RET_CONST(new IntervalVal(atof(yytext),Days))
@@ -398,10 +421,13 @@ class ZeekInterval(ZeekVal):
 
         return self.parse_native_type(type_name, val)
 
+    def json(self):
+        return self.v
+
 
 class ZeekString(ZeekVal):
     """A value with Zeek 'string' type."""
-    v = models.CharField(max_length=64*1024)
+    v = models.CharField("value", max_length=64*1024)
 
     def parse_native_type(self, type_name, val):
         assert isinstance(val, str), "trying to parse '%s' as string" % type(val)
@@ -422,12 +448,18 @@ class ZeekString(ZeekVal):
         return '"%s"' % result
 
     def __str__(self):
+        return '%s' % self.v
+
+    def web_str(self):
         return '"%s"' % self.v
+
+    def json(self):
+        return self.v
 
 
 class ZeekPort(ZeekVal):
     """A value with Zeek 'port' type. Port number and protocol {tcp, udp, icmp}"""
-    num = models.PositiveIntegerField()
+    num = models.PositiveIntegerField("Port number")
     proto = models.CharField(max_length=1, choices=[('t', "tcp"), ('u', "udp"), ('i', "icmp"), ('?', "unknown")], default='?')
 
     def parse_native_type(self, type_name, val):
@@ -483,10 +515,13 @@ class ZeekPort(ZeekVal):
     def zeek_export(self):
         return str(self)
 
+    def json(self):
+        return {'port': self.num, 'proto': self.get_proto_display()}
+
 
 class ZeekAddr(ZeekVal):
     """A value with Zeek 'addr' type. IPv4 of IPv6 address."""
-    v = models.GenericIPAddressField()
+    v = models.GenericIPAddressField("IP address")
 
     def parse_native_type(self, type_name, val):
         assert isinstance(val, ipaddress.IPv4Address) or isinstance(val, ipaddress.IPv6Address), "trying to parse '%s' as ipaddress" % type(val)
@@ -504,11 +539,14 @@ class ZeekAddr(ZeekVal):
     def __str__(self):
         return str(self.v)
 
+    def json(self):
+        return self.v
+
 
 class ZeekSubnet(ZeekVal):
     """A value with Zeek 'subnet' type. IPv4 of IPv6 address and CIDR mask."""
-    v = models.GenericIPAddressField()
-    cidr = models.PositiveSmallIntegerField()
+    v = models.GenericIPAddressField("Network address")
+    cidr = models.PositiveSmallIntegerField("CIDR")
 
     def parse_native_type(self, type_name, val):
         assert isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network), "trying to parse '%s' as ipnetwork" % type(val)
@@ -526,7 +564,7 @@ class ZeekSubnet(ZeekVal):
     def __str__(self):
         return "%s/%d" % (self.v, self.cidr)
 
-    def zeek_export(self):
+    def json(self):
         if ':' in self.v:
             f = "[%s]/%d"
         else:
@@ -536,7 +574,7 @@ class ZeekSubnet(ZeekVal):
 
 class ZeekEnum(ZeekVal):
     """A value with Zeek 'enum' type. We're just storing the string."""
-    v = models.CharField(max_length=1024)
+    v = models.CharField("value", max_length=1024)
 
     def parse_native_type(self, type_name, val):
         assert isinstance(val, str), "trying to parse '%s' as a string" % type(val)
@@ -561,6 +599,9 @@ class ZeekEnum(ZeekVal):
 
     def parse(self, type_name, val):
         return self.parse_native_type(type_name, val)
+
+    def json(self):
+        return self.v
 
 
 class ZeekPattern(ZeekVal):
@@ -1005,3 +1046,8 @@ atomic_type_mapping = {
     'port': ZeekPort,
     'subnet': ZeekSubnet,
 }
+
+def get_name_of_model(model):
+    for k, v in atomic_type_mapping.items():
+        if isinstance(model, v):
+            return k

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}
+eZeeKonfigurator: Edit {% if setting.option.namespace %}{{ setting.option.namespace }}::{% endif %}{{ setting.option.name }}
+{% endblock %}
+{% block content %}
+    {% for s in success %}
+    <div class="alert alert-success" role="alert">
+    {{ s }}
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+    </button>
+    </div>
+    {% endfor %}
+    <div>
+    <nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url "list_options" %}" >Options</a></li>
+    <li class="breadcrumb-item"><a href="#">{% if setting.option.namespace %}{{ setting.option.namespace }}{% else %}GLOBAL{% endif %}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ setting.option.name }}: {{ setting.option.datatype }}</li>
+  </ol>
+</nav>
+    <div class="alert alert-info" role="alert">
+  <h4 class="alert-heading"><span class="d-inline-block align-top fas fa-book-reader" aria-hidden="true"></span>&nbsp;&nbsp;&nbsp;Option Documentation</h4>
+  <p>{{ setting.option.docstring|linebreaksbr }}</p>
+  <hr>
+  <p class="mb-0">{% block type_doc %}{% endblock %}</p>
+</div>
+    {% block form %}
+    {% endblock %}
+{% endblock %}

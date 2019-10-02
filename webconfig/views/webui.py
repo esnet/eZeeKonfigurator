@@ -9,12 +9,16 @@ from django.core import management
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
 from django.db.models.functions import Lower
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django.urls import reverse
 
+from django_eventstream import send_event
+
 from webconfig import models
+from webconfig import forms
 
 
 def home(request):
@@ -140,8 +144,52 @@ def list_options(request):
     return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by(Lower('option__namespace'), Lower('option__name'))})
 
 
+def edit_set(request, data, obj):
+    data['type'] = "set"
+    vals = []
+    index_elems = models.ZeekTableIndexElement.objects.filter(content_type__model="zeek%s" % obj.type_name,
+                                                              object_id=obj.pk).order_by('index_pos')
+    for index_elem in index_elems:
+        index_elem_model = index_elem.index_elem_ctype.model_class()
+        vals += index_elem_model.objects.filter(content_type__model="zeektableindexelement", object_id=index_elem.pk)
+
+    data['vals'] = [(v, forms.get_form_for_model(v)) for v in vals]
+    return render(request, 'edit_option_composite.html', data)
+
+
+def edit_table(request, data, obj):
+    data['type'] = "table"
+    data['vals'] = []
+    for table_val in models.ZeekTableVal.objects.filter(content_type__model="zeek%s" % obj.type_name, object_id=obj.pk):
+        idx_vals = [(i.v, forms.get_form_for_model(i.v)) for i in table_val.get_index_vals()]
+        table_val = (table_val.v, forms.get_form_for_model(table_val.v))
+        data['vals'].append((idx_vals, table_val))
+
+    return render(request, 'edit_option_table.html', data)
+
+
 def edit_option(request, id):
-    return "TODO"
+    s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
+
+    data = {"setting": s, "type": models.get_name_of_model(s.value)}
+    if isinstance(s.value, models.ZeekSet):
+        return edit_set(request, data, s.value)
+    elif isinstance(s.value, models.ZeekTable):
+        return edit_table(request, data, s.value)
+    else:
+        form = forms.get_form_for_model(s.value, request.POST)
+        if request.POST:
+            old = str(s.value)
+            form.save()
+            new = str(s.value)
+            if s.option.namespace:
+                name = "%s::%s" % (s.option.namespace, s.option.name)
+            else:
+                name = s.option.name
+            send_event('test', 'message', {'type': 'change', 'option': name, 'val': s.value.json(), 'zeek_type': data['type']})
+            data['success'] = ["Changes saved: %s -> %s" % (old, new)]
+        data['form'] = forms.get_form_for_model(s.value)
+        return render(request, 'edit_option_atomic.html', data)
 
 
 def export_options(request, ver, sensor_uuid):
@@ -167,7 +215,6 @@ def block_sensor(request, sensor_id):
     s.authorized = False
     s.save()
     return list_sensors(request)
-
 
 # Below here is for development
 

@@ -1,0 +1,60 @@
+{% extends "edit_option.html" %}
+{% load crispy_forms_tags %}
+
+{% block form %}
+
+ <style>.col-form-label{ visibility: hidden; padding: 0;}</style>
+
+{% for row in vals %}
+ROW
+    {% for i in row %}
+    {% for idx in i %}
+    IDX{{ idx }}ENDVAL<br>
+        TBL{{ table }}ENDVAL<br>
+    {% endfor %}
+    {% endfor %}
+ENDROW
+    {% endfor %}
+
+
+ <form action="/your-name/" method="post">
+ <table class="table">
+ <thead class="thead-dark">
+    <tr>
+      <th scope="col">#</th>
+        {% for idx in vals.0.0 %}
+            {% for field in idx.1 %}
+            {% if field.name != "comment" %}
+      <th scope="col">Index {{ field.label }} @ Pos {{ forloop.counter }}</th>
+            {% endif %}
+                {% endfor %}
+        {% endfor %}
+            {% for field in vals.0.1.1 %}
+          <th scope="col">{{ field.label }}</th>
+        {% endfor %}
+    </tr>
+  </thead>
+ <tbody>
+{#    {% for row in vals %}#}
+{#        <tr>#}
+{#        <th scope="row">{{ forloop.counter }}</th>#}
+{#        {% for idx in row %}#}
+{#       {% for field in idx %}#}
+{#      <td>{{ field|as_crispy_field }}</td>#}
+{#     {% endfor %}#}
+{#            {% endfor %}#}
+{#        </tr>#}
+{# {% endfor %}#}
+ </tbody>
+ </table>
+  <div class="form-row">
+    <label for="change_message">Change message</label>
+    <input type="text" class="form-control" id="change_message" placeholder="Increased timeout due to long-lived connections">
+      <small id="changeHelp" class="form-text text-muted">A message describing why the change was made.</small>
+  </div>
+    <button type="submit" class="btn btn-success">Save</button>
+</form>
+{% endblock %}
+{% block type_doc %}
+See Zeek documentation for <a href="https://docs.zeek.org/en/stable/script-reference/types.html#type-{{ type }}" class="alert-link">{{ type }} types</a>.
+{% endblock %}
