@@ -160,12 +160,12 @@ class TestPortSerialization(TestUtilsJSON):
     ]]
 
     valid_from_json = [(i, o, "port") for i, o in [
-        ({'port': 22, 'proto': "tcp"}, broker.Port(22, broker.Port.Protocol.TCP)),
-        ({'port': 53, 'proto': "UDP"}, broker.Port(53, broker.Port.Protocol.UDP)),
-        ({'port': 8, 'proto': "icmp"}, broker.Port(8, broker.Port.Protocol.ICMP)),
+        ("22/tcp", broker.Port(22, broker.Port.Protocol.TCP)),
+        ("53/UDP", broker.Port(53, broker.Port.Protocol.UDP)),
+        ("8/icmp", broker.Port(8, broker.Port.Protocol.ICMP)),
 
-        ({'port': 0, 'proto': "udp"}, broker.Port(0, broker.Port.Protocol.UDP)),
-        ({'port': 55, 'proto': "unknown"}, broker.Port(55, broker.Port.Protocol.Unknown)),
+        ("0/udp", broker.Port(0, broker.Port.Protocol.UDP)),
+        ("55/unknown", broker.Port(55, broker.Port.Protocol.Unknown)),
     ]]
 
 
@@ -249,6 +249,9 @@ class TestDictSerialization(TestUtilsJSON):
         ({'one': 1, 'two': 2}, "table[string] of int"),
         ({1: 'one', 2: 'two'}, "table[int] of string"),
         ({(1, 3.0): "even", (2, 4.0): "odd"}, "table[int, double] of string"),
+        ({
+         ("53/udp", "80/tcp"): "legit",
+         ("0/tcp", "13/icmp"): "trouble"}, "table[port, port] of string")
     ]
     ]
 

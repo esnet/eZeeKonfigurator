@@ -1,0 +1,61 @@
+{% extends "edit_option.html" %}
+{% load crispy_forms_tags %}
+
+{% block form %}
+    <form action="/your-name/" method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button type="submit" class="btn btn-success">Save</button>
+</form>
+<form>
+xx{{  object.parent }}xx
+  <div class="form-group">
+    <label for="option_value">Value</label>
+    {% if type == "bool" %}
+      <select class="form-control" id="option_value">
+        {% if value == "True" %}
+        <option value="True" selected>True</option>
+        <option value="False">False</option>
+        {% else %}
+        <option value="True">True</option>
+        <option value="False" selected>False</option>
+            {% endif %}
+        </select>
+    {% else %}
+        <input
+        {% if type == "count" %}
+        type="number" step="1" min="0"
+        {% elif type == "interval" or type == "double" %}
+        type="number" step="any"
+        {% elif type == "int" %}
+        type="number" step="1"
+        {% elif type == "string" %}
+        type="text"
+        {% endif %}
+          class="form-control" aria-describedby="valueHelp" id="option_value" value="{{ setting.value }}">
+    {% endif %}
+
+    <small id="valueHelp" class="form-text text-muted">The new value for this option.
+    {% if type == "interval" %}
+    Value is in number of seconds.
+    {% endif %}
+    </small>
+  </div>
+    {% if type != "bool" %}
+  <div class="form-group">
+    <label for="option_text">Value comment</label>
+    <input type="text" class="form-control" aria-describedby="commentHelp" id="option_text" placeholder="10 MB, 1 day, 10x default, etc.">
+      <small id="commentHelp" class="form-text text-muted">What is the significance of this particular value?</small>
+  </div>
+    {% endif %}
+  <div class="form-group">
+    <label for="change_message">Change message</label>
+    <input type="text" class="form-control" id="change_message" placeholder="Increased timeout due to long-lived connections">
+      <small id="changeHelp" class="form-text text-muted">A message describing why the change was made.</small>
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+{% endblock %}
+{% block type_doc %}
+See Zeek documentation for <a href="https://docs.zeek.org/en/stable/script-reference/types.html#type-{{ type }}" class="alert-link">{{ type }} types</a>.
+{% endblock %}

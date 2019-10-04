@@ -186,7 +186,8 @@ def edit_option(request, id):
                 name = "%s::%s" % (s.option.namespace, s.option.name)
             else:
                 name = s.option.name
-            send_event('test', 'message', {'type': 'change', 'option': name, 'val': s.value.json(), 'zeek_type': data['type']})
+            change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': data['type'], 'uuid': s.option.sensor.uuid}
+            send_event('test', 'message', change_event)
             data['success'] = ["Changes saved: %s -> %s" % (old, new)]
         data['form'] = forms.get_form_for_model(s.value)
         return render(request, 'edit_option_atomic.html', data)

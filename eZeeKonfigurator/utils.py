@@ -81,9 +81,11 @@ def from_json(val, type_name):
     elif type_name == "subnet":
         v = ipaddress.ip_network(val)
     elif type_name == "port":
-        num = val.get('port')
+        num, proto = val.split("/", 1)
 
-        proto = val.get("proto").upper()
+        num = int(num)
+
+        proto = proto.upper()
         if proto == "TCP":
             proto = broker.Port.Protocol.TCP
         elif proto == "UDP":
