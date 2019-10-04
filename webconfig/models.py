@@ -33,11 +33,17 @@ def get_model_for_type(type_name):
     raise ValueError("Unknown type '%s'" % type_name)
 
 
+class SensorGroup(models.Model):
+    name = models.CharField(max_length=150)
+    uuid = models.UUIDField()
+
+
 class Sensor(models.Model):
     """A Zeek sensor."""
     hostname = models.CharField(max_length=150)
     uuid = models.UUIDField()
     zeek_version = models.CharField(max_length=30)
+    groups = models.ManyToManyField('SensorGroup')
 
     first_seen = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)

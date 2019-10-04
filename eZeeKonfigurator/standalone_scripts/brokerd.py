@@ -56,6 +56,7 @@ def setup():
 
     log.info("Broker server started on TCP %d", port)
 
+
 async def broker_loop():
     send_to_server("brokerd_info", {'ip': bind_address, 'port': port})
 
@@ -80,7 +81,6 @@ async def broker_loop():
             endpoint.publish(topic + "/" + uuid,
                              broker.zeek.Event("eZeeKonfigurator::option_list_request", datetime.datetime.now()))
 
-
         elif ev.name() == "eZeeKonfigurator::option_list_reply":
             opt_list = []
             for option in ev.args()[0]:
@@ -94,6 +94,7 @@ async def broker_loop():
 
             if opt_list:
                 send_to_server("sensor_option", {'sensor_uuid': uuid, 'options': opt_list})
+
 
 async def server_loop():
     while True:
@@ -109,7 +110,7 @@ async def server_loop():
                             uuid = data['uuid']
                             val = from_json(data['val'], data['zeek_type'])
                             endpoint.publish(topic + "/" + uuid,
-                                             broker.zeek.Event("eZeeKonfigurator::option_change_request", name, val))
+                                             broker.zeek.Event("eZeeKonfigurator::option_change_request", name, val, True))
                             log.debug("Received change event from eZeeKonfigurator: %s", data)
 
             except (ConnectionError, aiohttp.ClientPayloadError, asyncio.TimeoutError):
