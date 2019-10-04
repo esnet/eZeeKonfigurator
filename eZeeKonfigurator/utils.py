@@ -1,6 +1,25 @@
 import broker
 import datetime
 import ipaddress
+import json
+
+
+def get_index_types(type_name):
+    # We special case vector to treat it as a table[count]
+    if type_name.startswith("vector of "):
+        return "count"
+
+    if not ('[' in type_name and ']' in type_name):
+        raise ValueError("Could not determine index type for '%s'" % type_name)
+
+    # e.g. table[count,port] of table[foo,bar]
+    return type_name.split('[')[1].split(']')[0].split(', ')
+
+
+def get_yield_type(type_name):
+    if ' of ' not in type_name:
+        return None
+    return type_name.split(' of ')[1]
 
 
 def to_json(val):
@@ -26,10 +45,18 @@ def to_json(val):
     elif isinstance(val, broker.Enum) or isinstance(val, broker.Port):
         return str(val)
 
-    elif isinstance(val, set) or isinstance(val, tuple):
+    elif isinstance(val, set):
+        return [to_json(x) for x in val]
+    elif isinstance(val, tuple):
         return [to_json(x) for x in val]
     elif isinstance(val, dict):
-        return {str(to_json(k)): to_json(v) for k, v in val.items()}
+        data = {}
+        for k, v in val.items():
+            tmp_k = to_json(k)
+            if isinstance(tmp_k, list):
+                tmp_k = json.dumps(tmp_k)
+            data[tmp_k] = to_json(v)
+        return data
     else:
         raise ValueError("Unknown type", str(type(val)))
 
@@ -70,9 +97,41 @@ def from_json(val, type_name):
 
     # Time types
     elif type_name == "interval":
-        v = broker.Timespan(val * 1.0)
+        v = broker.Timespan(float(val))
     elif type_name == "time":
-        v = broker.Timestamp(val)
+        v = broker.Timestamp(float(val))
+
+    # Composite types
+    elif type_name.startswith("set["):
+        inner_type_name = type_name.split('set[', 1)[1]
+        inner_type_name = inner_type_name[:-1]
+        data = set([from_json(x, inner_type_name) for x in val])
+        v = broker.Data(data)
+
+    elif type_name.startswith("vector of "):
+        inner_type_name = type_name[10:]
+        data = tuple([from_json(x, inner_type_name) for x in val])
+        v = broker.Data(data)
+
+    elif type_name.startswith("table["):
+        index_types = get_index_types(type_name)
+        yield_type = get_yield_type(type_name)
+
+        data = {}
+
+        for k, v in val.items():
+            if len(index_types) > 1:
+                index = ()
+                k = json.loads(k)
+                print(k, index_types)
+                for i in range(len(index_types)):
+                    index = index + tuple([from_json(k[i], index_types[i])])
+            else:
+                index = from_json(k, index_types[0])
+
+            data[index] = from_json(v, yield_type)
+
+        return broker.Data(data)
 
     else:
         raise NotImplementedError("Converting type", type_name)

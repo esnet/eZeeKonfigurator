@@ -3,11 +3,12 @@ from aiohttp_sse_client import client as sse_client
 import asyncio
 import broker
 import datetime
-import ipaddress
 import json
 import logging
 import os
 import requests
+
+from eZeeKonfigurator.utils import from_json, to_json
 
 
 #logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
@@ -24,82 +25,6 @@ bind_port = os.environ.get("BROKERD_BIND_PORT", None)
 ez_url = os.environ.get("URL", "http://localhost:8000/")
 asgi_url = os.environ.get("ASGI_URL", ez_url + "events/")
 uuid = os.environ.get("UUID", "not-set")
-
-
-def to_json(val):
-    """Convert broker types to JSON."""
-    if val is None:
-        return val
-
-    if isinstance(val, bool) or isinstance(val, str) or isinstance(val, float) or isinstance(val, int):
-        return val
-    elif isinstance(val, bytes):
-        return str(val)
-
-    elif isinstance(val, datetime.timedelta):
-        return float(val.seconds)
-    elif isinstance(val, datetime.datetime):
-        return float(val.timestamp())
-
-    elif isinstance(val, ipaddress.IPv4Address) or isinstance(val, ipaddress.IPv6Address):
-        return val.compressed.lower()
-    elif isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network):
-        return val.compressed.lower()
-
-    elif isinstance(val, broker.Count):
-        return int(str(val))
-    elif isinstance(val, broker.Enum) or isinstance(val, broker.Port):
-        return str(val)
-
-    elif isinstance(val, set) or isinstance(val, tuple):
-        return [to_json(x) for x in val]
-    elif isinstance(val, dict):
-        return {str(to_json(k)): to_json(v) for k, v in val.items()}
-    else:
-        raise ValueError("Unknown type", str(type(val)))
-
-
-def from_json(val, type_name):
-    """Convert JSON types to broker."""
-    if val is None:
-        v = val
-    # Native types
-    elif type_name in ["bool", "int", "double", "string"]:
-        v = val
-
-    # Wrapper types
-    elif type_name == "count":
-        v = broker.Count(val)
-    elif type_name == "enum":
-        v = broker.Enum(val)
-
-    # Network types
-    elif type_name == "addr":
-        v = ipaddress.ip_address(val)
-    elif type_name == "subnet":
-        v = ipaddress.ip_network(val)
-    elif type_name == "port":
-        num = val.get('port')
-
-        proto = val.get("proto").upper()
-        if proto not in ["TCP", "UDP", "ICMP"]:
-            proto = "Unknown"
-
-        v = broker.Port(num, proto)
-
-    # Time types
-    elif type_name == "interval":
-        # Convert to nanoseconds
-        s_to_ns = 1000 * 1000 * 1000
-        v = broker.Timespan(val * s_to_ns)
-    elif type_name == "time":
-        v = broker.Timestamp(val)
-
-    else:
-        raise NotImplementedError("Converting type", type_name)
-
-    return broker.Data.from_py(v)
-
 
 
 def send_to_server(path, data):
@@ -136,14 +61,14 @@ async def broker_loop():
             await asyncio.sleep(1)
             continue
         else:
-            t, msg = result
+            t, msg = result[0]
         log.info("Connected to Zeek server")
 
         ev = broker.zeek.Event(msg)
         if ev.name() == "eZeeKonfigurator::sensor_info_reply":
             uuid, options = ev.args()
             fqdn, cur_time, net_time, pid, is_live, is_traces, version = options
-            log.info("Received sensor_info_reply from", fqdn)
+            log.info("Received sensor_info_reply from %ls", fqdn)
 
             send_to_server("sensor_info", {'sensor_uuid': uuid, 'zeek_version': version, 'hostname': fqdn})
 
@@ -189,4 +114,6 @@ async def main():
         result = await f
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.close()

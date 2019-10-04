@@ -8,6 +8,7 @@ from django.db import models
 from django.utils.timezone import make_aware
 import ipaddress
 import re
+from eZeeKonfigurator.utils import get_index_types, get_yield_type
 
 
 def get_model_for_type(type_name):
@@ -30,24 +31,6 @@ def get_model_for_type(type_name):
             return m
 
     raise ValueError("Unknown type '%s'" % type_name)
-
-
-def get_index_types(type_name):
-    # We special case vector to treat it as a table[count]
-    if type_name.startswith("vector of "):
-        return "count"
-
-    if not ('[' in type_name and ']' in type_name):
-        raise ValueError("Could not determine index type for '%s'" % type_name)
-
-    # e.g. table[count,port] of table[foo,bar]
-    return type_name.split('[')[1].split(']')[0].split(',')
-
-
-def get_yield_type(type_name):
-    if ' of ' not in type_name:
-        return None
-    return type_name.split(' of ')[1]
 
 
 class Sensor(models.Model):
@@ -478,10 +461,8 @@ class ZeekPort(ZeekVal):
             except ValueError:
                 raise ValidationError("Could not parse '%s' as port." % str(val))
 
-        if p.lower() in ['tcp', 'udp', 'icmp']:
+        if p.lower() in ['tcp', 'udp', 'icmp', '?']:
             p = p.lower()[0]
-        elif p.lower() == 'unknown':
-            p = '?'
         else:
             raise ValidationError("Could not parse '%s' as port." % str(val))
 
@@ -570,6 +551,9 @@ class ZeekSubnet(ZeekVal):
         else:
             f = "%s/%d"
         return f % (self.v, self.cidr)
+
+    def zeek_export(self):
+        return self.json()
 
 
 class ZeekEnum(ZeekVal):
@@ -810,6 +794,9 @@ class ZeekContainer(ZeekVal):
         yield_type = get_yield_type(type_name)
 
         return {'index_types': index_types, 'yield_type': yield_type}
+
+    def get_children(self, limit=0):
+        return None
 
 
 class ZeekTable(ZeekContainer):

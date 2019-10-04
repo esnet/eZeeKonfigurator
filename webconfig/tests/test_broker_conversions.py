@@ -1,6 +1,7 @@
 from django.test import TestCase
+import json
 
-from eZeeKonfigurator.standalone_scripts.utils import *
+from eZeeKonfigurator.utils import *
 
 
 class TestUtilsJSON(TestCase):
@@ -10,6 +11,11 @@ class TestUtilsJSON(TestCase):
         for i, o in self.valid_to_json:
             with self.subTest(py_val=i, json_val=o):
                 self.assertEqual(to_json(i), o)
+
+    def test_to_json_dump(self):
+        for i, o in self.valid_to_json:
+            with self.subTest(py_val=i):
+                json.dumps(to_json(i))
 
     def test_from_json(self):
         for i, o, type_name in self.valid_from_json:
@@ -31,8 +37,6 @@ class TestNativeTypesSerialization(TestUtilsJSON):
         -0.1,
         -1,
         0,
-        b"abc",
-        b"\u0000",
     ]]
 
     valid_from_json = [(x, x, t) for x, t in [
@@ -171,8 +175,19 @@ class TestSetSerialization(TestUtilsJSON):
         [0.1, 0.2, 0.3, 0.4],
         ["a", "b", "c", "d"],
         [ipaddress.ip_address("1.0.0.0"), ipaddress.ip_address("4.0.0.0"), ipaddress.ip_address("8.0.0.0")],
-        [ipaddress.ip_address("::"), ipaddress.ip_network("2::/12", strict=False), ipaddress.ip_network("dead:beef::/128")],
+        [ipaddress.ip_network("::/128"), ipaddress.ip_network("2::/12", strict=False), ipaddress.ip_network("dead:beef::/128")],
         [datetime.datetime.now()],
+    ]
+    ]
+
+    valid_from_json = [([to_json(i) for i in x], set(x), t) for x, t in [
+        ([1, 2, 3, 4], "int"),
+        ([0.1, 0.2, 0.3, 0.4], "double"),
+        (["a", "b", "c", "d"], "string"),
+        ([ipaddress.ip_address("1.0.0.0"), ipaddress.ip_address("4.0.0.0"), ipaddress.ip_address("8.0.0.0")], "addr"),
+        ([ipaddress.ip_network("::1/128"), ipaddress.ip_network("2::/12", strict=False),
+          ipaddress.ip_network("dead:beef::/128")], "subnet"),
+        ([datetime.datetime.now(datetime.timezone.utc)], "time"),
     ]
     ]
 
@@ -181,6 +196,16 @@ class TestSetSerialization(TestUtilsJSON):
             with self.subTest(py_val=i, json_val=o):
                 self.assertEqual(len(to_json(i)), len(o))
                 self.assertEqual(sorted(to_json(i)), sorted(o))
+
+    def test_from_json(self):
+        for i, o, t in self.valid_from_json:
+            with self.subTest(py_val=o, json_val=i):
+                result = broker.Data.to_py(from_json(i, "set[%s]" % t))
+                self.assertEqual(len(result), len(o))
+                for elem in result:
+                    self.assertIn(elem, o)
+                for elem in o:
+                    self.assertIn(elem, result)
 
 
 class TestVectorSerialization(TestUtilsJSON):
@@ -194,6 +219,23 @@ class TestVectorSerialization(TestUtilsJSON):
     ]
     ]
 
+    valid_from_json = [([to_json(i) for i in x], x, t) for x, t in [
+        ((1, 2, 3, 4), "int"),
+        ((0.1, 0.2, 0.3, 0.4), "double"),
+        (("a", "b", "c", "d"), "string"),
+        ((ipaddress.ip_address("1.0.0.0"), ipaddress.ip_address("4.0.0.0"), ipaddress.ip_address("8.0.0.0")), "addr"),
+        ((ipaddress.ip_network("::1/128"), ipaddress.ip_network("2::/12", strict=False),
+          ipaddress.ip_network("dead:beef::/128")), "subnet"),
+        ((datetime.datetime.now(datetime.timezone.utc), ), "time"),
+    ]
+    ]
+
+    def test_from_json(self):
+        for i, o, t in self.valid_from_json:
+            with self.subTest(py_val=o, json_val=i):
+                result = broker.Data.to_py(from_json(i, "vector of %s" % t))
+                self.assertEqual(result, o)
+
 
 class TestDictSerialization(TestUtilsJSON):
     valid_to_json = [({k:v for k, v in x.items()}, to_json(x)) for x in [
@@ -202,4 +244,40 @@ class TestDictSerialization(TestUtilsJSON):
         {(1, 3): "even", (2, 4): "odd"},
     ]
     ]
+
+    valid_from_json = [(to_json(x), x, t) for x, t in [
+        ({'one': 1, 'two': 2}, "table[string] of int"),
+        ({1: 'one', 2: 'two'}, "table[int] of string"),
+        ({(1, 3.0): "even", (2, 4.0): "odd"}, "table[int, double] of string"),
+    ]
+    ]
+
+    def test_from_json(self):
+        for i, o, type_name in self.valid_from_json:
+            with self.subTest(json_val=i, py_val=o):
+                result = broker.Data.to_py(from_json(i, type_name))
+                self.assertEqual(len(result), len(o))
+
+                print(i, result)
+
+                r_k = list(result.keys())
+                o_k = list(o.keys())
+                for elem in r_k:
+                    self.assertIn(elem, o_k)
+
+                r_v = result.values()
+                o_v = list(o.values())
+                for elem in r_v:
+                    self.assertIn(elem, o_v)
+
+
+class TestInvalid(TestCase):
+    def test_invalid_from(self):
+        with self.assertRaises(ValueError):
+            to_json(self)
+
+    def test_invalid_to(self):
+        with self.assertRaises(NotImplementedError):
+            from_json(self, "Test")
+
 
