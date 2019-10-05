@@ -277,21 +277,21 @@ class ZeekPortTestCase(ZeekAtomicValTestCase):
         ({"port": 65535, "proto": "tcp"}, "65535/tcp"),
         ({"port": 1234, "proto": "udp"}, "1234/udp"),
         ({"port": 255, "proto": "icmp"}, "255/icmp"),
-        ({"port": 123}, "123/unknown"),
+        ({"port": 123}, "123/?"),
         ("0/tcp", "0/tcp"),
         ("-0/tcp", "0/tcp"),
         ("65535/tcp", "65535/tcp"),
         ("1234/udp", "1234/udp"),
         ("255/icmp", "255/icmp"),
-        ("123/unknown", "123/unknown"),
+        ("123/unknown", "123/?"),
 
     ]
 
     invalid_input = [
-        "0/0", "0/sctp", "1/1/tcp", "1/", "/tcp",
+        "1/1/tcp", "/tcp",
         "256/icmp", "65535/icmp",
         "-1/tcp", "-2/icmp",
-        "0.0/tcp", "0/tdp", "0/ucp", "0/icp"
+        "0.0/tcp"
     ]
 
 
@@ -374,19 +374,19 @@ class ZeekPatternTestCase(ZeekAtomicValTestCase):
         p = "foo"
         m = models.ZeekVal.create("pattern", [self.exact_format % p, self.anywhere_format % p])
         m.save()
-        self.assertEqual(str(m), "foo")
+        self.assertEqual(str(m), "/foo/")
 
     def test_add_exact_foo_bar(self):
         m = models.ZeekVal.create("pattern", [r"^?((^?(foo)$?)|(^?(bar)$?))$?", r"^?(.|\\n)*((^?(foo)$?)|(^?(bar)$?))"])
         m.save()
-        self.assertEqual(str(m), "foo |\nbar")
+        self.assertEqual(str(m), "/foo/ | /bar/")
 
 
     def test_add_foo_or_bar(self):
         p = "foo|bar"
         m = models.ZeekVal.create("pattern", [self.exact_format % p, self.anywhere_format % p])
         m.save()
-        self.assertEqual(str(m), "foo|bar")
+        self.assertEqual(str(m), "/foo|bar/")
 
     def test_parse_exact_foo_bar(self):
         m = models.ZeekPattern()
@@ -398,7 +398,7 @@ class ZeekPatternTestCase(ZeekAtomicValTestCase):
         self.assertEqual(m.get_exact_parts(r"^?((^?((^?((^?((^?((^?((^?((^?((^?((^?((^?((^?((^?(foo)$?)|(^?(bar)$?))$?)|(^?(baz)$?))$?)|(^?(qux)$?))$?)|(^?(quuz)$?))$?)|(^?(corge)$?))$?)|(^?(grault)$?))$?)|(^?(garply)$?))$?)|(^?(waldo)$?))$?)|(^?(fred)$?))$?)|(^?(plugh)$?))$?)|(^?(xyzzy)$?))$?)|(^?(thud)$?))$?"),
                          ['foo', 'bar', 'baz', 'qux', 'quuz', 'corge', 'grault', 'garply', 'waldo', 'fred', 'plugh', 'xyzzy', 'thud'])
 
-    valid_in_out = [(["^?(\/playground\/init\/login\/validate)$?", "^?(.|\n)*(\/playground\/init\/login\/validate)"], r"/playground/init/login/validate")]
+    valid_in_out = [(["^?(\/playground\/init\/login\/validate)$?", "^?(.|\n)*(\/playground\/init\/login\/validate)"], r"/\/playground\/init\/login\/validate/")]
 
 
 # class ZeekSetTestCase(ZeekContainerValTestCase):
@@ -451,68 +451,68 @@ class ZeekPatternTestCase(ZeekAtomicValTestCase):
 #         self.assertEqual(str(m), "{[1] = \"one\"}")
 #
 
-class ZeekTestImport(TestCase):
-    filename = os.path.join(os.path.dirname(__file__), "test_data/site_local.opts.json")
-    opts = {}
-
-    def setUp(self):
-        with open(self.filename) as f:
-            self.opts = json.loads(f.readline())['data']['options']
-
-    def run_for_type(self, t):
-        for k, v in self.opts.items():
-            if v['type_name'].startswith(t):
-                with self.subTest(opt=k, val=v['value']):
-                    m = models.ZeekVal.create(v['type_name'], v['value'])
-                    m.save()
-
-    def test_bool(self):
-        self.run_for_type('bool')
-
-    def test_count(self):
-        self.run_for_type('count')
-
-    def test_string(self):
-        self.run_for_type('string')
-
-    def test_enum(self):
-        self.run_for_type('enum')
-
-    def test_interval(self):
-        self.run_for_type('interval')
-
-    def test_int(self):
-        self.run_for_type('int')
-
-    def test_double(self):
-        self.run_for_type('double')
-
-    def test_table(self):
-        self.run_for_type('table[')
-
-    def test_set(self):
-        self.run_for_type('set[')
-
-    def test_vector(self):
-        self.run_for_type('vector of ')
-
-    @staticmethod
-    def index_type_checked(index_type, composite_types):
-        for c in composite_types:
-            if index_type.startswith(c):
-                return True
-        return False
-
-    def test_z_items_left(self):
-        parsed_atomic_types = ['bool', 'count', 'string', 'enum', 'interval', 'int', 'double']
-        parsed_composite_types = ['table[', 'set[', 'vector of ']
-
-        unparsed_atomics = [v['type_name'] for k, v in self.opts.items() if v['type_name'] not in parsed_atomic_types]
-        unparsed = [i for i in unparsed_atomics if not self.index_type_checked(i, parsed_composite_types)]
-
-        print("\n".join(unparsed))
-
-        self.assertEqual(len(unparsed), 0)
+# class ZeekTestImport(TestCase):
+#     filename = os.path.join(os.path.dirname(__file__), "test_data/site_local.opts.json")
+#     opts = {}
+#
+#     def setUp(self):
+#         with open(self.filename) as f:
+#             self.opts = json.loads(f.readline())['data']['options']
+#
+#     def run_for_type(self, t):
+#         for k, v in self.opts.items():
+#             if v['type_name'].startswith(t):
+#                 with self.subTest(opt=k, val=v['value']):
+#                     m = models.ZeekVal.create(v['type_name'], v['value'])
+#                     m.save()
+#
+#     def test_bool(self):
+#         self.run_for_type('bool')
+#
+#     def test_count(self):
+#         self.run_for_type('count')
+#
+#     def test_string(self):
+#         self.run_for_type('string')
+#
+#     def test_enum(self):
+#         self.run_for_type('enum')
+#
+#     def test_interval(self):
+#         self.run_for_type('interval')
+#
+#     def test_int(self):
+#         self.run_for_type('int')
+#
+#     def test_double(self):
+#         self.run_for_type('double')
+#
+#     def test_table(self):
+#         self.run_for_type('table[')
+#
+#     def test_set(self):
+#         self.run_for_type('set[')
+#
+#     def test_vector(self):
+#         self.run_for_type('vector of ')
+#
+#     @staticmethod
+#     def index_type_checked(index_type, composite_types):
+#         for c in composite_types:
+#             if index_type.startswith(c):
+#                 return True
+#         return False
+#
+#     def test_z_items_left(self):
+#         parsed_atomic_types = ['bool', 'count', 'string', 'enum', 'interval', 'int', 'double']
+#         parsed_composite_types = ['table[', 'set[', 'vector of ']
+#
+#         unparsed_atomics = [v['type_name'] for k, v in self.opts.items() if v['type_name'] not in parsed_atomic_types]
+#         unparsed = [i for i in unparsed_atomics if not self.index_type_checked(i, parsed_composite_types)]
+#
+#         print("\n".join(unparsed))
+#
+#         self.assertEqual(len(unparsed), 0)
 
 
 class SensorModel(TestCase):

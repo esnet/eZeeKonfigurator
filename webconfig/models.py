@@ -398,10 +398,10 @@ class ZeekPort(ZeekVal):
             except ValueError:
                 raise ValidationError("Could not parse '%s' as port." % str(val))
 
-        if p.lower() in ['tcp', 'udp', 'icmp', '?']:
+        if p.lower() in ['tcp', 'udp', 'icmp']:
             p = p.lower()[0]
         else:
-            raise ValidationError("Could not parse '%s' as port." % str(val))
+            p = '?"'
 
         if p == 'i':
             if n < 0 or n > 255:
@@ -424,10 +424,11 @@ class ZeekPort(ZeekVal):
         return self.parse_native_type(type_name, val)
 
     def __str__(self):
-        if self.proto:
+        if self.proto and self.proto in ['t', 'u', 'i']:
             p = self.get_proto_display()
         else:
-            p = "unknown"
+            # get_proto_display doesn't like '?'
+            p = "?"
         return "%d/%s" % (self.num, p)
 
     def zeek_export(self):
@@ -523,92 +524,6 @@ class ZeekEnum(ZeekVal):
 
     def json(self):
         return self.v
-
-
-class ZeekPattern(ZeekVal):
-    """A value with Zeek 'pattern' type. A regex."""
-    # This is a list of patterns OR-ed together. Patterns point here.
-
-    exact_format = "^?(%s)$?"
-    anywhere_format = "^?(.|\\n)*(%s)"
-
-    def parse_native_type(self, type_name, val):
-        assert isinstance(val, list), "trying to parse '%s' as a list (pattern)" % type(val)
-
-        return {}
-
-    def create_children(self, val):
-        exact, anywhere = val
-        i = 0
-        for part in self.get_exact_parts(exact):
-            e = ZeekPatternElement(v=part, index_offset=i, parent=self)
-            e.save()
-            i += 1
-
-    def parse(self, type_name, val):
-        return self.parse_native_type(type_name, val)
-
-    def _format(self, str_function):
-        r = ""
-        for p in ZeekPatternElement.objects.filter(content_type__model="zeekpattern", object_id=self.pk).order_by('index_offset'):
-            r += p.v.replace("\\", "") + " |\n"
-
-        if r:
-            r = r[:-3]
-        return r
-
-    def __str__(self):
-        return self._format(__name__)
-
-    def zeek_export(self):
-        return str(self)
-
-    def strip_wrappers(self, val):
-        if val.startswith("^?(") and val.endswith(")$?"):
-            return val[3:-3]
-        elif val.startswith("(^?(") and val.endswith(")$?)"):
-            return val[4:-4]
-
-        raise ValidationError("Wrappers not found")
-
-    def get_last_elem_exact(self, val):
-        # Example: ^?(foo)$?)|(^?(bar)$?
-        m = re.search(r'\)+\$\?\)\|\(\^\?\((.*)\)\$\?\)$', val)
-        result = m.group(1)
-        # Our search is greedy, so we keep going until we're done
-        while ")$?)|(^?(" in result:
-            m = re.search(r'\)+\$\?\)\|\(\^\?\((.*)$', result)
-            result = m.group(1)
-
-        return result
-
-    def get_exact_parts(self, val):
-        # When Zeek appends to an existing pattern, it does:
-        # "(%s)|(^?(%s)$?)" % old, new
-
-        if not val.startswith("^?(") or not val.endswith(")$?"):
-            raise ValidationError("Could not parse '%s' as two exact parts" % val)
-
-        val = self.strip_wrappers(val)
-
-        parts = []
-
-        while ")$?)|(^?(" in val:
-            last_elem = self.get_last_elem_exact(val)
-            parts.insert(0, last_elem)
-            # We remove |(^?(%s)$?) % last_elem
-            val = val.replace("|(^?(%s)$?)" % last_elem, "")
-            val = self.strip_wrappers(val)
-
-        parts.insert(0, val)
-        return parts
-
-
-class ZeekPatternElement(ZeekVal):
-    """A single element within a pattern."""
-
-    v = models.CharField(max_length=1024)
-    index_offset = models.PositiveIntegerField()
 
 
 class ZeekRecord(ZeekVal):
@@ -779,6 +694,11 @@ class ZeekContainer(ZeekVal):
         fmt = {'s': "{%s}", 't': "{%s}",
                'v': "[%s]"}
 
+        separator = {'s': ", ",
+                     't': ", ",
+                     'v': ", ",
+                     }
+
         count = self.items.all().count()
 
         if self.type_name == 's' or self.type_name == 't':
@@ -786,10 +706,11 @@ class ZeekContainer(ZeekVal):
         elif self.type_name == 'v':
             data = [str(i.v) for i in self.items.all().order_by('position')[offset:offset+limit]]
 
+
         if count > offset + limit:
             data.append("...and %d more elements..." % (count - limit - offset))
 
-        return fmt[self.type_name] % ", ".join(data)
+        return fmt[self.type_name] % separator[self.type_name].join(data)
 
 
 class ZeekContainerItem(ZeekVal):
@@ -829,6 +750,87 @@ class ZeekContainerKey(ZeekVal):
     v = GenericForeignKey()
 
 
+class ZeekPattern(ZeekContainer):
+    """A value with Zeek 'pattern' type. A regex."""
+    # This is a list of patterns OR-ed together. Patterns point here.
+
+    exact_format = "^?(%s)$?"
+    anywhere_format = "^?(.|\\n)*(%s)"
+
+    v = models.CharField(max_length=1024, null=True, blank=True)
+
+    def parse_native_type(self, type_name, val):
+        return {'yield_type': 'pattern', 'type_name': 'p'}
+
+    def create_children(self, val):
+        exact, anywhere = val
+        i = 0
+        for part in self.get_exact_parts(exact):
+            p = ZeekPattern(yield_type='pattern', v=part, type_name='p')
+            p.save()
+            e = ZeekContainerItem(v=p, position=i, parent=self)
+            e.save()
+            i += 1
+
+    def parse(self, type_name, val):
+        return self.parse_native_type(type_name, val)
+
+    def __str__(self, limit=10, offset=0):
+        if self.items.all()[offset:offset+limit]:
+            count = self.items.all().count()
+            result = " | ".join(str(p.v) for p in self.items.all()[offset:offset+limit])
+
+            if count > offset + limit:
+                result += "...OR %d more patterns..." % (count - limit - offset)
+            return result
+
+        result = self.v
+        return "/%s/" % result
+
+    def zeek_export(self):
+        return str(self)
+
+    def strip_wrappers(self, val):
+        if val.startswith("^?(") and val.endswith(")$?"):
+            return val[3:-3]
+        elif val.startswith("(^?(") and val.endswith(")$?)"):
+            return val[4:-4]
+
+        raise ValidationError("Wrappers not found")
+
+    def get_last_elem_exact(self, val):
+        # Example: ^?(foo)$?)|(^?(bar)$?
+        m = re.search(r'\)+\$\?\)\|\(\^\?\((.*)\)\$\?\)$', val)
+        result = m.group(1)
+        # Our search is greedy, so we keep going until we're done
+        while ")$?)|(^?(" in result:
+            m = re.search(r'\)+\$\?\)\|\(\^\?\((.*)$', result)
+            result = m.group(1)
+
+        return result
+
+    def get_exact_parts(self, val):
+        # When Zeek appends to an existing pattern, it does:
+        # "(%s)|(^?(%s)$?)" % old, new
+
+        if not val.startswith("^?(") or not val.endswith(")$?"):
+            raise ValidationError("Could not parse '%s' as two exact parts" % val)
+
+        val = self.strip_wrappers(val)
+
+        parts = []
+
+        while ")$?)|(^?(" in val:
+            last_elem = self.get_last_elem_exact(val)
+            parts.insert(0, last_elem)
+            # We remove |(^?(%s)$?) % last_elem
+            val = val.replace("|(^?(%s)$?)" % last_elem, "")
+            val = self.strip_wrappers(val)
+
+        parts.insert(0, val)
+        return parts
+
+
 atomic_type_mapping = {
     'bool': ZeekBool,
 
@@ -848,6 +850,7 @@ atomic_type_mapping = {
     'port': ZeekPort,
     'subnet': ZeekSubnet,
 }
+
 
 def get_name_of_model(model):
     for k, v in atomic_type_mapping.items():
