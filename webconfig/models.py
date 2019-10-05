@@ -326,7 +326,6 @@ class ZeekCount(ZeekVal):
         return self.v_msb + self.v_lsb
 
 
-
 # {FLOAT}		RET_CONST(new Val(atof(yytext), TYPE_DOUBLE))
 # Uses C double behind the scenes, as does Python
 class ZeekDouble(ZeekVal):
@@ -349,6 +348,7 @@ class ZeekDouble(ZeekVal):
 
     def json(self):
         return self.v
+
 
 # This is a double, representing seconds since the epoch
 class ZeekTime(ZeekVal):
