@@ -1,9 +1,8 @@
-from codecs import encode, decode
 import datetime
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_ipv46_address, validate_ipv4_address, RegexValidator
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.timezone import make_aware
 import ipaddress
@@ -12,6 +11,10 @@ from eZeeKonfigurator.utils import get_index_types, get_yield_type
 
 
 def get_model_for_type(type_name):
+    # Strip quotes
+    type_name = type_name.strip('"\'')
+    type_name = type_name.rstrip('"\'')
+
     if isinstance(type_name, list):
         return [get_model_for_type(t) for t in type_name]
 
@@ -20,15 +23,11 @@ def get_model_for_type(type_name):
     except KeyError:
         pass
 
-    composite = {'set[': ZeekSet,
-                 'vector of ': ZeekVector,
-                 'table[': ZeekTable,
-                 'record {': ZeekRecord,
-                 }
+    composite = ['set[', 'vector of ', 'table[', 'record {']
 
-    for c, m in composite.items():
+    for c in composite:
         if type_name.startswith(c):
-            return m
+            return ZeekContainer
 
     raise ValueError("Unknown type '%s'" % type_name)
 
@@ -110,62 +109,10 @@ class Setting(models.Model):
         return "%s = %s" % (self.option, self.value)
 
 
-# Zeek data types
-#################
-# Shared building blocks
-#
-# OWS (optional whitespace)	[ \t]*
-# WS  (whitespace)      	[ \t]+
-# D	  (digit)               [0-9]+
-# HEX                   	[0-9a-fA-F]+
-# IDCOMPONENT               [A-Za-z_][A-Za-z_0-9]*
-# ID	                    {IDCOMPONENT}(::{IDCOMPONENT})*
-# IP6                       ("["({HEX}:){7}{HEX}"]")|("["0x{HEX}({HEX}|:)*"::"({HEX}|:)*"]")|("["({HEX}|:)*"::"({HEX}|:)*"]")|("["({HEX}|:)*"::"({HEX}|:)*({D}"."){3}{D}"]")
-# FILE	                    [^ \t\n]+
-# PREFIX	                [^ \t\n]+
-# FLOAT	                    (({D}*"."?{D})|({D}"."?{D}*))([eE][-+]?{D})?
-# H	                        [A-Za-z0-9][A-Za-z0-9\-]*
-# ESCSEQ	                (\\([^\n]|[0-7]+|x[[:xdigit:]]+))
-#
-# #.*	/* eat comments */
-# {WS}	/* eat whitespace */
-#
-######
-# IPv6 literal constant patterns
-######
-#
-# {IP6}	{
-# 	RET_CONST(new AddrVal(extract_ip(yytext)))
-# }
-#
-# {IP6}{OWS}"/"{OWS}{D}	{
-# 	int len = 0;
-# 	string ip = extract_ip_and_len(yytext, &len);
-# 	RET_CONST(new SubNetVal(IPPrefix(IPAddr(ip), len, true)))
-# }
-#
-######
-# IPv4 literal constant patterns
-######
-#
-# ({D}"."){3}{D}		RET_CONST(new AddrVal(yytext))
-#
-# ({D}"."){3}{D}{OWS}"/"{OWS}{D}	{
-# 	int len = 0;
-# 	string ip = extract_ip_and_len(yytext, &len);
-# 	RET_CONST(new SubNetVal(IPPrefix(IPAddr(ip), len)))
-# }
-
-
 class ZeekVal(models.Model):
     """Abstract base class for Zeek values."""
     # Which setting(s) do we belong to?
     settings = GenericRelation(Setting)
-
-    # Our value can be in a parent value for composite types.
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
-    object_id = models.PositiveIntegerField(null=True)
-    parent = GenericForeignKey()
 
     comment = models.CharField("Value comment", help_text="What is this significance of the chosen value?", max_length=1024, null=True, blank=True)
 
@@ -200,8 +147,6 @@ class ZeekVal(models.Model):
         abstract = True
 
 
-# T	RET_CONST(new Val(true, TYPE_BOOL))
-# F	RET_CONST(new Val(false, TYPE_BOOL))
 class ZeekBool(ZeekVal):
     """A value with Zeek 'bool' type. Valid options are 'T' or 'F'."""
     v = models.BooleanField("True?", )
@@ -230,7 +175,6 @@ class ZeekBool(ZeekVal):
         return self.v
 
 
-# typedef int64 bro_int_t;
 class ZeekInt(ZeekVal):
     """A value with a Zeek 'int' type. Signed 64-bit int. Uses native Django support."""
     v = models.BigIntegerField("Value", )
@@ -260,10 +204,6 @@ class ZeekInt(ZeekVal):
         return self.v
 
 
-# typedef uint64 bro_uint_t;
-# {D}		{
-# 		RET_CONST(val_mgr->GetCount(static_cast<bro_uint_t>(strtoull(yytext, (char**) NULL, 10))))
-# 		}
 class ZeekCount(ZeekVal):
     """A value with Zeek 'count' type. Unsigned 64-bit int (0 <= val <= 18,446,744,073,709,551,615 (2^64 - 1).
 
@@ -326,8 +266,6 @@ class ZeekCount(ZeekVal):
         return self.v_msb + self.v_lsb
 
 
-# {FLOAT}		RET_CONST(new Val(atof(yytext), TYPE_DOUBLE))
-# Uses C double behind the scenes, as does Python
 class ZeekDouble(ZeekVal):
     """A value with Zeek 'double' type. Double-precision floating-point number."""
     v = models.FloatField("value", )
@@ -350,7 +288,6 @@ class ZeekDouble(ZeekVal):
         return self.v
 
 
-# This is a double, representing seconds since the epoch
 class ZeekTime(ZeekVal):
     """A value with Zeek 'time' type."""
     v = models.DateTimeField("value", )
@@ -376,12 +313,6 @@ class ZeekTime(ZeekVal):
         return self.v.timestamp()
 
 
-# {FLOAT}{OWS}day(s?)	RET_CONST(new IntervalVal(atof(yytext),Days))
-# {FLOAT}{OWS}hr(s?)	RET_CONST(new IntervalVal(atof(yytext),Hours))
-# {FLOAT}{OWS}min(s?)	RET_CONST(new IntervalVal(atof(yytext),Minutes))
-# {FLOAT}{OWS}sec(s?)	RET_CONST(new IntervalVal(atof(yytext),Seconds))
-# {FLOAT}{OWS}msec(s?)	RET_CONST(new IntervalVal(atof(yytext),Milliseconds))
-# {FLOAT}{OWS}usec(s?)	RET_CONST(new IntervalVal(atof(yytext),Microseconds))
 class ZeekInterval(ZeekVal):
     """A value with Zeek 'interval' type. Number of seconds, stored as a double."""
     v = models.FloatField("Number of seconds")
@@ -769,255 +700,133 @@ class ZeekContainer(ZeekVal):
     vector of Z = table[count] of Z: Python list [a, b, c]
     """
 
+    type_name = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table"), ('r', "record")])
+
     # This is mostly just a container that other values will point to, but we store some data as shortcuts
-    index_types = models.CharField(max_length=1024, default="<unknown>")
-    yield_type = models.CharField(max_length=1024, default="<unknown>")
-
-    class Meta:
-        abstract = True
-
-    def _format(self, string_function):
-        """The logic is very similar, so we just handle this once for either str or zeek_export."""
-        result = ""
-        for table_val in ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk):
-            index_str = "[" + ",".join([getattr(i, string_function)() for i in table_val.get_index_vals()]) + "]"
-            yield_str = getattr(table_val.v, string_function)()
-            result += "  %s = %s,\n" % (index_str, yield_str)
-        if not result:
-            return "{}"
-        result = result[:-2]
-        return "{\n%s\n}" % result
-
-    def __str__(self):
-        return self._format("__str__")
-
-    def zeek_export(self):
-        return self._format("zeek_export")
-
-    def get_types(self, type_name):
-        index_type_list = get_index_types(type_name)
-        index_types = ",".join(index_type_list)
-        yield_type = get_yield_type(type_name)
-
-        return {'index_types': index_types, 'yield_type': yield_type}
-
-    def get_children(self, limit=0):
-        return None
-
-
-class ZeekTable(ZeekContainer):
-    """A value with Zeek 'table' type. Associative array.    """
-
-    # We overload this for set and vector
-    type_name = 'table'
+    index_types = models.CharField(max_length=1024, default="<unknown>", null=True, blank=True)
+    yield_type = models.CharField(max_length=1024, default="<unknown>", null=True, blank=True)
 
     def parse(self, type_name, val):
-        return self.get_types(type_name)
+        return {'type_name': type_name[0].lower(),
+                'index_types': str(get_index_types(type_name)),
+                'yield_type': get_yield_type(type_name)}
 
-    def create_children(self, val):
-        assert isinstance(val, dict), "trying to parse '%s' as a dict" % type(val)
+    def create_children(self, vals):
+        # Depending on the datatype, we expect:
+        #
+        #  set: a list. If it's a multi-key set, a list of lists.
 
-        for i, y in val.items():
-            yield_val = ZeekVal.create(self.yield_type, y)
-            yield_val.parent = self
-            yield_val.save()
+        if self.type_name == 's':
+            assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_type_name_display())
 
-            table_val = ZeekTableVal(v=yield_val, parent=self)
-            table_val.save()
+            for val in vals:
+                if not isinstance(val, list):
+                    val = [val]
 
-            # We don't store this, so we need to rebuild it
-            index_type_list = get_index_types("table[%s] of %s" % (self.index_types, self.yield_type))
+                self.create_child(val)
 
-            for index_pos in range(len(index_type_list)):
+        #  vector: a list of single values
+        elif self.type_name == 'v':
+            assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_type_name_display())
 
-                # This element of the index points to something, e.g. [count, port] => 2, 22/tcp.
-                # First we store the value it's pointing to.
-                index_elem_model = get_model_for_type(index_type_list[index_pos])
-                index_elem_val = index_elem_model.create(index_type_list[index_pos], i)
-                index_elem_val.save()
+            position = 0
+            for val in vals:
+                self.create_child(val, position)
+                position += 1
 
-                # Now we store the index element itself.
-                index_elem = ZeekTableIndexElement(index_pos=index_pos, y=table_val, v=index_elem_val)
-                index_elem.parent = self
-                index_elem.save()
-    #
-    # def _format(self, format):
-    #     vals = ZeekTableVal.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk)
-    #     return str(vals)
+        #  table: a dict of k/v pairs
+        elif self.type_name == 't':
+            assert isinstance(vals, dict), "trying to parse '%s' as a dict (%s)" % (type(vals), self.get_type_name_display())
+
+            for k, v in vals.items():
+                if not isinstance(k, list) and not isinstance(k, tuple):
+                    k = [k]
+
+                self.create_child(k, v)
+
+        else:
+            raise NotImplementedError
+
+    def create_child(self, idx_vals, key_val=None):
+        index_types = get_index_types(self.index_types)
+        index_offset = 0
+
+        # First, we create our item
+        if self.type_name == 'v':
+            item = ZeekContainerItem(parent=self, v=ZeekVal.create(self.yield_type, idx_vals), position=key_val)
+            item.save()
+            return
+        elif self.type_name == 's':
+            item = ZeekContainerItem(parent=self)
+        elif self.type_name == 't':
+            item = ZeekContainerItem(parent=self, v=ZeekVal.create(self.yield_type, key_val))
+
+        item.save()
+
+        # Now we create all the keys
+
+        if isinstance(idx_vals, tuple):
+            idx_vals = list(idx_vals)
+
+        for c, t in zip(idx_vals, index_types):
+            key_value = ZeekVal.create(t, c)
+
+            key = ZeekContainerKey(parent=item, index_offset=index_offset, v=key_value)
+            key.save()
+            index_offset += 1
+
+    def __str__(self, limit=10, offset=0):
+        fmt = {'s': "{%s}", 't': "{%s}",
+               'v': "[%s]"}
+
+        count = self.items.all().count()
+
+        if self.type_name == 's' or self.type_name == 't':
+            data = [str(i) for i in self.items.all()[offset:offset+limit]]
+        elif self.type_name == 'v':
+            data = [str(i.v) for i in self.items.all().order_by('position')[offset:offset+limit]]
+
+        if count > offset + limit:
+            data.append("...and %d more elements..." % (count - limit - offset))
+
+        return fmt[self.type_name] % ", ".join(data)
 
 
-class ZeekTableVal(ZeekVal):
-    """This is one of the yield values in our table."""
+class ZeekContainerItem(ZeekVal):
+    """This is a single item in the container. It can be thought of as a key-value pair in a Python dict."""
 
-    # The yield is optional, as sets inherit from this and don't yield anything.
-    yield_elem_ctype = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="yield_elem", null=True)
-    yield_elem_objid = models.PositiveIntegerField(null=True)
-    v = GenericForeignKey('yield_elem_ctype', 'yield_elem_objid')
+    parent = models.ForeignKey('ZeekContainer', "The container value that we belong to", related_name="items")
 
-    def get_index_vals(self):
-        """Returns index elements that point here, sorted by index position"""
-        return self.zeektableindexelement_set.order_by('index_pos')
+    # We'll have a reverse relationship of keys
 
+    # This is our yield value. It's optional (e.g. sets).
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    v = GenericForeignKey()
 
-class ZeekTableIndexElement(ZeekVal):
-    """Because a table index can have multiple types (e.g. table[port, count]), we need to store our
-    position in the index."""
-    index_pos = models.PositiveIntegerField()
-
-    # This points to our index value
-    index_elem_ctype = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="index_elem")
-    index_elem_objid = models.PositiveIntegerField()
-    v = GenericForeignKey('index_elem_ctype', 'index_elem_objid')
-
-    # This points to our yield value
-    y = models.ForeignKey('ZeekTableVal', on_delete=models.CASCADE, null=True, blank=True)
+    position = models.PositiveIntegerField("Position in the container, for those where order matters", null=True, blank=True)
 
     def __str__(self):
-        return str(self.v)
-
-    def zeek_export(self):
-        return self.v.zeek_export()
-
-
-class ZeekSet(ZeekContainer):
-    """A value with Zeek 'set' type. An unordered unique list.
-
-    This is a table[index_type] of None."""
-
-    type_name = "set"
-    yield_type = models.CharField(max_length=1024, null=True, blank=True)
-
-    def create_children(self, val):
-        assert isinstance(val, list), "trying to parse '%s' as a list" % type(val)
-
-        # We don't store this, so we need to rebuild it
-        index_type_list = get_index_types("set[%s]" % self.index_types)
-
-        for v in val:
-            for index_pos in range(len(index_type_list)):
-                # This element of the index points to something, e.g. [count, port] => 2, 22/tcp.
-                # First we store the value it's pointing to.
-                index_elem_model = get_model_for_type(index_type_list[index_pos])
-                if len(index_type_list) > 1:
-                    curr_v = v[index_pos]
-                else:
-                    curr_v = v
-                index_elem_val = index_elem_model.create(index_type_list[index_pos], curr_v)
-
-                # Now we store the index element itself.
-                index_elem = ZeekTableIndexElement(index_pos=index_pos, v=index_elem_val)
-                index_elem.parent = self
-                index_elem.save()
-
-                index_elem_val.parent = index_elem
-                index_elem_val.save()
-
-    def parse(self, type_name, val):
-        return self.get_types(type_name)
-
-    def _format(self, string_function):
-        """The logic is very similar, so we just handle this once for either str or zeek_export."""
-        result = "{"
-        index_elems = ZeekTableIndexElement.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk).order_by('index_pos')
-        for index_elem in index_elems:
-            index_elem_model = index_elem.index_elem_ctype.model_class()
-            vals = index_elem_model.objects.filter(content_type__model="zeektableindexelement", object_id=index_elem.pk)
-
-            if len(vals) > 1:
-                index_str = "[" + ",".join([getattr(i, string_function)() for i in vals]) + "]"
-            elif len(vals) == 1:
-                index_str = getattr(vals[0], string_function)()
-            else:
-                index_str = "Unknown"
-            result += "%s, " % index_str
-        if len(result) > 2:
-            result = result[:-2]
-        result += "}"
+        keys = self.keys.all()
+        result = ", ".join([str(k) for k in keys])
+        if len(keys) > 1 or self.v:
+            result = "[%s]" % result
+        if self.v:
+            result += " = %s" % str(self.v)
 
         return result
 
-    def __str__(self):
-        return self._format('__str__')
 
+class ZeekContainerKey(ZeekVal):
+    """Because a container can have multiple keys for a single item, we store each one separately."""
+    parent = models.ForeignKey('ZeekContainerItem', "The key-value pair that we belong to", related_name="keys")
 
-class ZeekVector(ZeekContainer):
-    """A value with Zeek 'vector' type. table[count] of ..."""
+    index_offset = models.PositiveSmallIntegerField("For composite keys, the 0-index position that we're in.")
 
-    type_name = "vector"
-
-    # We expect this to be a set
-    def json_parse_elements(self, index_type_list, list_val):
-        for i in range(len(list_val)):
-            self.yield_type = "count"
-            idx = ZeekVal.create("count", i)
-            idx.parent = self
-            idx.save()
-
-            table_val = ZeekTableVal(v=idx, parent=self)
-            table_val.save()
-            for index_pos in range(len(index_type_list)):
-
-                # This element of the index points to something, e.g. [count, port] => 2, 22/tcp.
-                # First we store the value it's pointing to.
-                index_elem_model = get_model_for_type(index_type_list[index_pos])
-                index_elem_val = index_elem_model.create(index_type_list[index_pos], list_val[i])
-                index_elem_val.save()
-
-                # Now we store the index element itself.
-                index_elem = ZeekTableIndexElement(index_pos=index_pos, y=table_val, v=index_elem_val)
-                index_elem.parent = self
-                index_elem.save()
-
-    @staticmethod
-    def parse(type_name, val):
-        raise NotImplementedError("Parsing a complex type from a string isn't supported.")
-
-
-# class ZeekVectorElement(ZeekVal):
-#     """A single element within a Zeek 'vector' (index, value table)."""
-#     index = models.PositiveIntegerField()
-#     elem_ctype = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name="elem")
-#     elem_objid = models.PositiveIntegerField()
-#     v = GenericForeignKey('elem_ctype', 'elem_objid')
-#
-#     def __str__(self):
-#         return "[%d] = %s" % (self.index, str(self.v))
-#
-#
-# class ZeekVector(ZeekVal):
-#
-#     """A collection of several ZeekVectorElements"""
-#     yield_type = models.CharField(max_length=100)
-#
-#     def parse(self, type_name, val):
-#         if not type_name.startswith('vector of '):
-#             raise ValidationError("Invalid type '%s' passed to vector." % type_name)
-#
-#         yield_type = type_name[10:]
-#         if yield_type not in atomic_type_mapping:
-#             print("Yield type", yield_type, "is not a valid atomic type.")
-#             return None
-#         self.yield_type = yield_type
-#         self.save()
-#
-#         for i in range(len(val)):
-#             model = ZeekVal.objects.create(yield_type, val[i])
-#             if not model:
-#                 raise ValidationError("Could not parse vector element '%s' for vector of '%s'" %(val[i], yield_type))
-#             model.save()
-#             elem = ZeekVectorElement(index=i, v=model, parent=self)
-#             elem.save()
-#
-#         return self
-#
-#     def get_reverse(self):
-#         return ZeekVectorElement.objects.filter(content_type__model="zeekvector", object_id=self.pk).order_by('index')
-#
-#     def __str__(self):
-#         return "[%s]" % ",".join([str(x.v) for x in self.get_reverse()])
-#
-#     def zeek_export(self):
-#         return str(self)
+    # This is our actual value. It is NOT optional.
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    v = GenericForeignKey()
 
 
 atomic_type_mapping = {

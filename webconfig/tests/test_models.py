@@ -5,6 +5,7 @@ from django.urls import reverse
 import json
 import os
 from webconfig import models
+from eZeeKonfigurator.utils import *
 
 
 class ZeekValTestCase(TestCase):
@@ -400,57 +401,55 @@ class ZeekPatternTestCase(ZeekAtomicValTestCase):
     valid_in_out = [(["^?(\/playground\/init\/login\/validate)$?", "^?(.|\n)*(\/playground\/init\/login\/validate)"], r"/playground/init/login/validate")]
 
 
-class ZeekSetTestCase(ZeekContainerValTestCase):
-    model = models.ZeekSet
-    order_matters = False
-
-    valid_in_out = [
-        ("set[string]", ["1", "2", "3"], '{"1", "2", "3"}'),
-        # ("set[string]", "{1}", "{1}"),
-        # ("set[string]", "{}", "{}"),
-        # ("set[string]", "{a, b, c}", "{a, b, c}"),
-        # ("set[count]", "{1, 2, 3}", "{1, 2, 3}"),
-        # ("set[int]", "{1, 0, -1}", "{1, 0, -1}"),
-        # ("set[set[int]]", "{{0, 1}, {1, 2}}", "{{0, 1}, {1, 2}}"),
-    ]
-
-    invalid_input = [
-        ("set[string]", {1, 2}),
-    ]
-
-
-class ZeekTableTestCase(ZeekContainerValTestCase):
-    model = models.ZeekTable
-
-    valid_in_out = [
-        ("table[count] of string", {"1":"one","2":"two"}, '{[1] = "one", [2] = "two"}'),
-        ("table[count] of bool", {"1":"T","2":"F"}, '{[1] = T, [2] = F}'),
-        ("table[bool] of bool", {"T":"T","F":"F"}, '{[T] = T, [F] = F}'),
-    ]
-
-    def test_parse(self):
-        m = self.model().parse("table[count, port] of string", None)
-        self.assertEqual(m['index_types'], 'count, port')
-        self.assertEqual(m['yield_type'], 'string')
-
-    def test_create_empty_directly(self):
-        kwargs = self.model().parse("table[count, port] of string", {})
-        m = self.model(**kwargs)
-        m.save()
-
-        self.assertEqual(m.index_types, 'count, port')
-        self.assertEqual(m.yield_type, 'string')
-
-    def test_create_empty_top(self):
-        m = models.ZeekVal.create("table[count, port] of string", {})
-        self.assertEqual(str(m), "{}")
-
-    def test_create_simple_empty(self):
-        m = models.ZeekVal.create("table[count] of string", {1: 'one'})
-        self.assertEqual(str(m), "{[1] = \"one\"}")
-
-
-
+# class ZeekSetTestCase(ZeekContainerValTestCase):
+#     model = models.ZeekSet
+#     order_matters = False
+#
+#     valid_in_out = [
+#         ("set[string]", ["1", "2", "3"], '{"1", "2", "3"}'),
+#         # ("set[string]", "{1}", "{1}"),
+#         # ("set[string]", "{}", "{}"),
+#         # ("set[string]", "{a, b, c}", "{a, b, c}"),
+#         # ("set[count]", "{1, 2, 3}", "{1, 2, 3}"),
+#         # ("set[int]", "{1, 0, -1}", "{1, 0, -1}"),
+#         # ("set[set[int]]", "{{0, 1}, {1, 2}}", "{{0, 1}, {1, 2}}"),
+#     ]
+#
+#     invalid_input = [
+#         ("set[string]", {1, 2}),
+#     ]
+#
+#
+# class ZeekTableTestCase(ZeekContainerValTestCase):
+#     model = models.ZeekTable
+#
+#     valid_in_out = [
+#         ("table[count] of string", {"1":"one","2":"two"}, '{[1] = "one", [2] = "two"}'),
+#         ("table[count] of bool", {"1":"T","2":"F"}, '{[1] = T, [2] = F}'),
+#         ("table[bool] of bool", {"T":"T","F":"F"}, '{[T] = T, [F] = F}'),
+#     ]
+#
+#     def test_parse(self):
+#         m = self.model().parse("table[count, port] of string", None)
+#         self.assertEqual(m['index_types'], 'count, port')
+#         self.assertEqual(m['yield_type'], 'string')
+#
+#     def test_create_empty_directly(self):
+#         kwargs = self.model().parse("table[count, port] of string", {})
+#         m = self.model(**kwargs)
+#         m.save()
+#
+#         self.assertEqual(m.index_types, 'count, port')
+#         self.assertEqual(m.yield_type, 'string')
+#
+#     def test_create_empty_top(self):
+#         m = models.ZeekVal.create("table[count, port] of string", {})
+#         self.assertEqual(str(m), "{}")
+#
+#     def test_create_simple_empty(self):
+#         m = models.ZeekVal.create("table[count] of string", {1: 'one'})
+#         self.assertEqual(str(m), "{[1] = \"one\"}")
+#
 
 class ZeekTestImport(TestCase):
     filename = os.path.join(os.path.dirname(__file__), "test_data/site_local.opts.json")
@@ -612,3 +611,76 @@ class ZeekRecordTestCase(TestCase):
     def test_create_table_of(self):
         m = models.ZeekVal.create('table[count] of record { arg:int; addl:int; }', {1: [1, -1]})
         self.assertEqual(str(m), "[$arg = 1, $addl = -1]")
+
+
+class CompositeTestCase(TestCase):
+    def test_set_easy(self):
+        val = [1, 2]
+        val_type = 'count'
+
+        m = models.ZeekVal.create("set[%s]" % val_type, val)
+        self.assertEqual(m.type_name, 's')
+        self.assertEqual(m.index_types, "['%s']" % val_type)
+        self.assertIsNone(m.yield_type)
+        self.assertEqual(len(m.items.all()), len(val))
+
+        for v in val:
+            self.assertEqual(len(models.ZeekVal.filter(val_type, v)), 1)
+
+        self.assertEqual(str(m), "{1, 2}")
+
+    def test_set_medium(self):
+        m = models.ZeekVal.create("set[count, enum, port, addr, subnet]", [[1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"]])
+        self.assertEqual(m.type_name, 's')
+        self.assertEqual(m.index_types, "['count', 'enum', 'port', 'addr', 'subnet']")
+        self.assertIsNone(m.yield_type)
+        self.assertEqual(len(m.items.all()), 1)
+
+        self.assertEqual(len(models.ZeekVal.filter('count', 1)), 1)
+        self.assertEqual(len(models.ZeekVal.filter('enum', "Notice::ALARM")), 1)
+        self.assertEqual(len(models.ZeekVal.filter('port', "22/tcp")), 1)
+        self.assertEqual(len(models.ZeekVal.filter('addr', "::1")), 1)
+        self.assertEqual(len(models.ZeekVal.filter('subnet', "0.0.0.0/0")), 1)
+
+        self.assertEqual(str(m), "{[1, Notice::ALARM, 22/tcp, ::1, 0.0.0.0/0]}")
+
+    def test_set_hard(self):
+        m = models.ZeekVal.create("set[record { arg:int; addl:int; }, record { nested:record { arg1:int; arg2:int; }; arg2:port; }]", [])
+        self.assertEqual(m.type_name, 's')
+        self.assertEqual(m.index_types, "['record { arg:int; addl:int; }', 'record { nested:record { arg1:int; arg2:int; }; arg2:port; }']")
+        self.assertIsNone(m.yield_type)
+
+    def test_vector_easy(self):
+        m = models.ZeekVal.create("vector of count", [1, 2, 3, 4, 5])
+        self.assertEqual(str(m), "[1, 2, 3, 4, 5]")
+
+    def test_vector_medium(self):
+        m = models.ZeekVal.create("vector of port", ["21/tcp", "22/tcp", "53/udp", "8080/udp", "255/icmp"])
+        self.assertEqual(str(m), "[21/tcp, 22/tcp, 53/udp, 8080/udp, 255/icmp]")
+
+    def test_table_easy(self):
+        m = models.ZeekVal.create("table[count] of string", {1: "one", 2: "two"})
+        self.assertEqual(str(m), '{[1] = one, [2] = two}')
+
+    def test_table_medium(self):
+        m = models.ZeekVal.create("table[count, enum, port, addr, subnet] of interval", {(1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"): 30.0})
+        self.assertEqual(str(m), '{[1, Notice::ALARM, 22/tcp, ::1, 0.0.0.0/0] = 30.0}')
+
+    def test_table_of_table(self):
+        type_name = "table[count] of table[string] of interval"
+        self.assertEqual(get_index_types(type_name), ["count"])
+        self.assertEqual("table[string] of interval", get_yield_type(type_name))
+        m = models.ZeekVal.create(type_name, {1: {"one": 1.0}})
+        self.assertEqual(str(m), '{[1] = {[one] = 1.0}}')
+
+    def test_table_hard(self):
+        m = models.ZeekVal.create("table[count, enum, port, addr, subnet] of table[count, enum, port, addr, subnet] of interval", {(1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"): {(2, "Notice::PAGE", "80/udp", "2600::1", "127.0.0.1/32"): 86400}})
+        self.assertEqual(str(m), '{[1, Notice::ALARM, 22/tcp, ::1, 0.0.0.0/0] = {[2, Notice::PAGE, 80/udp, 2600::1, 127.0.0.1/32] = 86400.0}}')
+
+    def test_truncation(self):
+        m = models.ZeekVal.create("set[count]", [x for x in range(1000)])
+        self.assertEqual(str(m), "{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...and 990 more elements...}")
+
+    def test_offset(self):
+        m = models.ZeekVal.create("set[count]", [x for x in range(1000)])
+        self.assertEqual(m.__str__(10, 10), "{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, ...and 980 more elements...}")

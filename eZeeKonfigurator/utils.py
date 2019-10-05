@@ -5,12 +5,8 @@ import json
 
 
 def get_index_types(type_name):
-    # We special case vector to treat it as a table[count]
-    if type_name.startswith("vector of "):
-        return "count"
-
     if not ('[' in type_name and ']' in type_name):
-        raise ValueError("Could not determine index type for '%s'" % type_name)
+        return []
 
     # e.g. table[count,port] of table[foo,bar]
     return type_name.split('[')[1].split(']')[0].split(', ')
@@ -19,7 +15,7 @@ def get_index_types(type_name):
 def get_yield_type(type_name):
     if ' of ' not in type_name:
         return None
-    return type_name.split(' of ')[1]
+    return type_name.split(' of ', 1)[1]
 
 
 def to_json(val):

@@ -22,7 +22,7 @@ SubnetForm = modelform_factory(models.ZeekSubnet, fields=("v", "cidr", "comment"
 
 EnumForm = modelform_factory(models.ZeekEnum, fields=default_fields)
 
-SetForm = modelform_factory(models.ZeekSet, fields=("yield_type", "comment"))
+#SetForm = modelform_factory(models.ZeekSet, fields=("yield_type", "comment"))
 
 
 def get_form_for_model(model, post_data=None):
@@ -48,6 +48,6 @@ def get_form_for_model(model, post_data=None):
         return SubnetForm(post_data, instance=model)
     if isinstance(model, models.ZeekEnum):
         return EnumForm(post_data, instance=model)
-    if isinstance(model, models.ZeekSet):
-        return SetForm(post_data, instance=model)
+    # if isinstance(model, models.ZeekSet):
+    #     return SetForm(post_data, instance=model)
 
