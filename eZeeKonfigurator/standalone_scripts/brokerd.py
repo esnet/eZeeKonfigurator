@@ -31,6 +31,13 @@ asgi_url = os.environ.get("ASGI_URL", ez_url + "events/")
 uuid = os.environ.get("UUID", "00112233-4455-6677-8899-aabbccddeeff")
 
 
+def dump_to_file(name, data):
+    filename = os.path.join("errors", "%s.json" % name)
+    with open(filename, 'w') as f:
+        f.write(data)
+    log.debug("Dumped %s to %s", name, filename)
+
+
 def send_to_server(path, data):
     url = ez_url + "brokerd_api/%s/v%s/%s/" % (uuid, client_version, path)
     log.debug("Sending %s", data)
@@ -39,16 +46,13 @@ def send_to_server(path, data):
     except:
         if debug:
             for o in data['options']:
-                with os.path.join("errors", "%s.json" % o['name']) as f:
-                    f.write(data)
-                log.debug("Dumped value to %s", os.path.join("errors", "%s.json" % o['name']))
-        log.error("Could not send data to %s" % path)
+                dump_to_file(o['name'], o['val'])
         return
-
-    if r.status_code == 200:
-        log.debug("Successfully sent POST to eZeeKonfigurator server")
     else:
-        log.warning("Error sending POST to eZeeKonfigurator server: Got %d", r.status_code)
+        if r.status_code == 200:
+            log.debug("Successfully sent POST to eZeeKonfigurator server")
+        else:
+            log.warning("Error sending POST to eZeeKonfigurator server: Got %d", r.status_code)
 
 
 def setup():

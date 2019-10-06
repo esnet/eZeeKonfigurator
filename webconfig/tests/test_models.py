@@ -588,8 +588,7 @@ class BrokerDaemonAPI(TestCase):
         for o in options:
             data = {'sensor_uuid': self.zs_uuid, 'options': [o]}
             response = self.client.post(reverse('sensor_option', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}),
-                                    json.dumps(data),
-                                    content_type="application/json")
+                                        json.dumps(data), content_type="application/json")
             self.assertEqual(response.status_code, 200)
 
         # Check that we didn't create duplicates
@@ -612,7 +611,7 @@ class ZeekRecordTestCase(TestCase):
 
     def test_create_table_of(self):
         m = models.ZeekVal.create('table[count] of record { arg:int; addl:int; }', {1: [1, -1]})
-        self.assertEqual(str(m), "[$arg = 1, $addl = -1]")
+        self.assertEqual(str(m), "{[1] = [$arg = 1, $addl = -1]}")
 
 
 class CompositeTestCase(TestCase):

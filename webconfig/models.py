@@ -24,7 +24,10 @@ def get_model_for_type(type_name):
     except KeyError:
         pass
 
-    composite = ['set[', 'vector of ', 'table[', 'record {']
+    if type_name.startswith('record {'):
+        return ZeekRecord
+
+    composite = ['set[', 'vector of ', 'table[']
 
     for c in composite:
         if type_name.startswith(c):
@@ -565,7 +568,7 @@ class ZeekRecord(ZeekVal):
     def _format(self, string_function):
         """The logic is very similar, so we just handle this once for either str or zeek_export."""
         result = "["
-        for record_field in ZeekRecordField.objects.filter(content_type__model="zeek%s" % self.type_name, object_id=self.pk).order_by('index_pos'):
+        for record_field in self.fields.all().order_by('index_pos'):
             field_val = getattr(record_field, string_function)()
             if field_val:
                 result += field_val + ", "
@@ -589,17 +592,14 @@ class ZeekRecordField(ZeekVal):
     record_elem_objid = models.PositiveIntegerField(null=True)
     val = GenericForeignKey('record_elem_ctype', 'record_elem_objid')
 
+    parent = models.ForeignKey('ZeekRecord', help_text="The record we belong to",
+                               related_name="fields", on_delete=models.CASCADE)
+
     def _format(self, string_function):
-        if not self.record_elem_ctype:
+        if not self.val:
             return None
 
-        m = self.record_elem_ctype.model_class()
-        try:
-            val = m.objects.get(content_type__model="zeekrecordfield", object_id=self.pk)
-            result = "$" + self.name + " = " + getattr(val, string_function)()
-        except m.DoesNotExist:
-            return None
-        return result
+        return "$" + self.name + " = " + getattr(self.val, string_function)()
 
     def __str__(self):
         return self._format('__str__')
@@ -619,7 +619,9 @@ class ZeekContainer(ZeekVal):
     vector of Z = table[count] of Z: Python list [a, b, c]
     """
 
-    ctr_type = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table"), ('r', "record")])
+    ctr_type = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table")])
+
+    v = models.CharField("Current value", max_length=1024, null=True, blank=True)
 
     type_name = models.CharField("How Zeek identifies the name, e.g. table[count, port] of string", max_length=512)
 
@@ -631,7 +633,8 @@ class ZeekContainer(ZeekVal):
         return {'ctr_type': type_name[0].lower(),
                 'type_name': type_name,
                 'index_types': str(get_index_types(type_name)),
-                'yield_type': get_yield_type(type_name)}
+                'yield_type': get_yield_type(type_name),
+                'v': str(val)}
 
     def create_children(self, vals):
         # Depending on the datatype, we expect:
@@ -668,6 +671,14 @@ class ZeekContainer(ZeekVal):
 
         else:
             raise NotImplementedError
+
+    def clean(self):
+        try:
+            j = json.loads(self.v)
+        except TypeError:
+            raise ValidationError("Could not parse field as JSON")
+
+        self.create_children(j)
 
     def create_child(self, idx_vals, key_val=None):
         index_types = get_index_types(self.index_types)
@@ -737,7 +748,6 @@ class ZeekContainer(ZeekVal):
             return result
 
 
-
 class ZeekContainerItem(ZeekVal):
     """This is a single item in the container. It can be thought of as a key-value pair in a Python dict."""
 
@@ -795,8 +805,6 @@ class ZeekPattern(ZeekContainer):
 
     exact_format = "^?(%s)$?"
     anywhere_format = "^?(.|\\n)*(%s)"
-
-    v = models.CharField(max_length=1024, null=True, blank=True)
 
     def parse_native_type(self, type_name, val):
         return {'yield_type': 'pattern', 'type_name': 'p'}

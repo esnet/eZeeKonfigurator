@@ -160,7 +160,7 @@ def get_empty(request, obj, handle_post=True):
             f = forms.get_empty_form(models.get_model_for_type(obj.yield_type), data)
         except ValueError:
             f = None
-            print("Need to figure this out")
+            raise NotImplementedError("Need to figure this out") # TODO
     else:
         f = None
 
