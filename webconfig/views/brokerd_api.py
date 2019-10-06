@@ -1,11 +1,13 @@
 import json
+from django.conf import settings
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
 
 from webconfig import models
 
 api_version = 1
+
 
 def error(text, status=400):
     return JsonResponse({'success': False, 'errors': [text]}, status=status)
@@ -13,6 +15,8 @@ def error(text, status=400):
 
 def authorized_brokerd(view_func):
     def wrapper(*args, **kw):
+        if not settings.BROKERD_AUTH_ENABLED:
+            return view_func(*args, **kw)
         try:
             uuid = kw['brokerd_uuid']
             models.BrokerDaemon.objects.get(uuid=uuid, authorized=True)

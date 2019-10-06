@@ -15,6 +15,8 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# There's an optional authentication layer for broker daemons, but this requires additional setup.
+BROKERD_AUTH_ENABLED = False
 
 # Application definition
 
