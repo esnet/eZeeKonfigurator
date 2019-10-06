@@ -3,6 +3,7 @@ from aiohttp_sse_client import client as sse_client
 import asyncio
 import broker
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -33,8 +34,12 @@ uuid = os.environ.get("UUID", "00112233-4455-6677-8899-aabbccddeeff")
 
 def dump_to_file(name, data):
     filename = os.path.join("errors", "%s.json" % name)
+    try:
+        json_data = json.dumps(data)
+    except TypeError as e:
+        json_data = str(e) + "\n" + str(data)
     with open(filename, 'w') as f:
-        f.write(data)
+        f.write(json_data)
     log.debug("Dumped %s to %s", name, filename)
 
 
@@ -53,6 +58,9 @@ def send_to_server(path, data):
             log.debug("Successfully sent POST to eZeeKonfigurator server")
         else:
             log.warning("Error sending POST to eZeeKonfigurator server: Got %d", r.status_code)
+            if debug:
+                name = hashlib.md5(str(data).encode('utf-8')).hexdigest()
+                dump_to_file(name, data)
 
 
 def setup():
