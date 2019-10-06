@@ -24,6 +24,7 @@ urlpatterns = [
     path('sensors/auth', webui.list_sensors, name='list_sensors'),
     path('sensors/settings', webui.list_options, name='list_options'),
     path('sensors/edit_option/<int:id>', webui.edit_option, name='edit_option'),
+    path('sensors/append_option/<int:id>', webui.append_option, name='append_option'),
 
     #path('client_api/v<int:ver>/<slug:sensor_uuid>/option_list/', webconfig.views.client_api_option_list, name='option_list'),
     path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/sensor_info/', brokerd_api.sensor_info, name='sensor_info'),

@@ -716,7 +716,8 @@ class ZeekContainer(ZeekVal):
 class ZeekContainerItem(ZeekVal):
     """This is a single item in the container. It can be thought of as a key-value pair in a Python dict."""
 
-    parent = models.ForeignKey('ZeekContainer', "The container value that we belong to", related_name="items")
+    parent = models.ForeignKey('ZeekContainer', help_text="The container value that we belong to",
+                               related_name="items", on_delete=models.CASCADE)
 
     # We'll have a reverse relationship of keys
 
@@ -740,7 +741,8 @@ class ZeekContainerItem(ZeekVal):
 
 class ZeekContainerKey(ZeekVal):
     """Because a container can have multiple keys for a single item, we store each one separately."""
-    parent = models.ForeignKey('ZeekContainerItem', "The key-value pair that we belong to", related_name="keys")
+    parent = models.ForeignKey('ZeekContainerItem', help_text="The key-value pair that we belong to",
+                               related_name="keys", on_delete=models.CASCADE)
 
     index_offset = models.PositiveSmallIntegerField("For composite keys, the 0-index position that we're in.")
 
@@ -856,3 +858,5 @@ def get_name_of_model(model):
     for k, v in atomic_type_mapping.items():
         if isinstance(model, v):
             return k
+    else:
+        return model._meta.model_name

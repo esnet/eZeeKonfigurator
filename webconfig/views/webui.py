@@ -19,6 +19,7 @@ from django_eventstream import send_event
 
 from webconfig import models
 from webconfig import forms
+from eZeeKonfigurator import utils
 
 
 def home(request):
@@ -144,38 +145,147 @@ def list_options(request):
     return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by(Lower('option__namespace'), Lower('option__name'))})
 
 
-def edit_set(request, data, obj):
-    data['type'] = "set"
-    vals = []
-    index_elems = models.ZeekTableIndexElement.objects.filter(content_type__model="zeek%s" % obj.type_name,
-                                                              object_id=obj.pk).order_by('index_pos')
-    for index_elem in index_elems:
-        index_elem_model = index_elem.index_elem_ctype.model_class()
-        vals += index_elem_model.objects.filter(content_type__model="zeektableindexelement", object_id=index_elem.pk)
+def update_val(form, instance):
+    old = str(instance)
+    if not form.is_valid():
+        return False, str(form)
 
-    data['vals'] = [(v, forms.get_form_for_model(v)) for v in vals]
+    form.save()
+    new = str(instance)
+
+    if old == new:
+        result = ""
+    else:
+        result = "%s -> %s" % (old, new)
+
+    return True, result
+
+
+def get_container_items(obj, request, handle_post=True):
+    items = []
+
+    # Empty request.POST causes this to not validate
+    data = None
+    if request.POST and handle_post:
+        data = request.POST
+
+    for item in obj.items.all().order_by('position'):
+        keys = [{'obj': k, 'form': forms.get_form_for_model(k.v, data)} for k in item.keys.all()]
+        if item.v:
+            items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys, 'id': str(item.id)})
+
+    return items
+
+
+def get_empty(request, obj, handle_post=True):
+    data = None
+    if request.POST and handle_post:
+        data = request.POST
+
+    keys = []
+    idx_types = utils.get_index_types(obj.index_types)
+    for i in range(len(idx_types)):
+        keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
+
+    if obj.yield_type:
+        f = forms.get_empty_form(models.get_model_for_type(obj.yield_type), data)
+
+    all_valid = keys or f
+    for k in keys:
+        if not k['form'].is_valid():
+            all_valid = False
+
+    if f and not f.is_valid():
+        all_valid = False
+
+    if all_valid:
+        if f:
+            item_val = f.save()
+            ctr_item = models.ZeekContainerItem(parent=obj, v=item_val, position=len(obj.items.all()))
+        else:
+            ctr_item = models.ZeekContainerItem(parent=obj, position=len(obj.items.all()))
+        ctr_item.save()
+
+        for i in range(len(keys)):
+            key_val = keys[i]['form'].save()
+            k = models.ZeekContainerKey(parent=ctr_item, v=key_val, index_offset=i)
+            k.save()
+
+        return {'form': f, 'keys': keys}, str(ctr_item)
+
+    return {'form': f, 'keys': keys}, False
+
+
+def append_container(request, data, obj):
+    data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+    data['yield_type'] = obj.yield_type
+
+    data['errors'] = []
+    changes = []
+
+    data['empty'], added = get_empty(request, obj)
+    if added:
+        changes.append("Added: %s" % added)
+
+    if changes:
+        data['success'] = ["Changes saved: " + "\n".join(changes)]
+
+    data['items'] = get_container_items(obj, request, False)
+
     return render(request, 'edit_option_composite.html', data)
 
 
-def edit_table(request, data, obj):
-    data['type'] = "table"
-    data['vals'] = []
-    for table_val in models.ZeekTableVal.objects.filter(content_type__model="zeek%s" % obj.type_name, object_id=obj.pk):
-        idx_vals = [(i.v, forms.get_form_for_model(i.v)) for i in table_val.get_index_vals()]
-        table_val = (table_val.v, forms.get_form_for_model(table_val.v))
-        data['vals'].append((idx_vals, table_val))
+def edit_container(request, data, obj):
+    data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+    data['yield_type'] = obj.yield_type
 
-    return render(request, 'edit_option_table.html', data)
+    data['errors'] = []
+    changes = []
+
+    if request.POST:
+        for item in obj.items.all().order_by('position'):
+            for key in item.keys.all():
+                f = forms.get_form_for_model(key.v, request.POST)
+                valid, msg = update_val(f, key.v)
+                if valid and msg:
+                    changes.append(msg)
+
+            if item.v:
+                f = forms.get_form_for_model(item.v, request.POST)
+                valid, msg = update_val(f, item.v)
+                if valid and msg:
+                    changes.append(msg)
+
+        # Now we delete
+        for k, v in request.POST.items():
+            if k.startswith('delete_') and v == 'on':
+                k = k.replace('delete_', "")
+                try:
+                    i = obj.items.get(id=k)
+                    val = str(i)
+                    i.delete()
+                    changes.append("Deleted " + val)
+                except obj.DoesNotExist:
+                    data['errors'].append("Could not find object '%s' to delete." % k)
+
+    data['empty'], added = get_empty(request, obj, False)
+    if added:
+        changes.append("Added: %s" % added)
+
+    if changes:
+        data['success'] = ["Changes saved: " + "\n".join(changes)]
+
+    data['items'] = get_container_items(obj, request)
+
+    return render(request, 'edit_option_composite.html', data)
 
 
 def edit_option(request, id):
     s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
 
     data = {"setting": s, "type": models.get_name_of_model(s.value)}
-    if isinstance(s.value, models.ZeekSet):
-        return edit_set(request, data, s.value)
-    elif isinstance(s.value, models.ZeekTable):
-        return edit_table(request, data, s.value)
+    if isinstance(s.value, models.ZeekContainer):
+        return edit_container(request, data, s.value)
     else:
         form = forms.get_form_for_model(s.value, request.POST)
         if request.POST:
@@ -191,6 +301,17 @@ def edit_option(request, id):
             data['success'] = ["Changes saved: %s -> %s" % (old, new)]
         data['form'] = forms.get_form_for_model(s.value)
         return render(request, 'edit_option_atomic.html', data)
+
+
+def append_option(request, id):
+    """Only used for containers."""
+    s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
+
+    data = {"setting": s, "type": models.get_name_of_model(s.value)}
+    if not isinstance(s.value, models.ZeekContainer):
+        return HttpResponse(400, "Can only append to a container.")
+
+    return append_container(request, data, s.value)
 
 
 def export_options(request, ver, sensor_uuid):
