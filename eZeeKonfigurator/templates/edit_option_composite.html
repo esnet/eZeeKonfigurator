@@ -27,9 +27,12 @@
       {% for k in item.keys %}
       <td>{{ k.form|crispy }}</td>
       {% endfor %}
-    {% if item.obj.v %}
-      <td>{{ item.form|crispy }}</td>
+    {% if item.form %}
+      <td>{{ item.form|crispy }}</td
+    {% elif item.readonly %}
+      <td>{{ item.readonly }}</td>
     {% endif %}
+
             <td>
                 <div class="form-group">
                 <input type="checkbox" name="delete_{{ item.id }}">

@@ -172,7 +172,13 @@ def get_container_items(obj, request, handle_post=True):
     for item in obj.items.all().order_by('position'):
         keys = [{'obj': k, 'form': forms.get_form_for_model(k.v, data)} for k in item.keys.all()]
         if item.v:
-            items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys, 'id': str(item.id)})
+            try:
+                items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys, 'id': str(item.id)})
+            except ValueError:
+                # Composite type
+                items.append({'keys': keys, 'id': str(item.id), 'readonly': str(item.v)})
+        else:
+            items.append({'keys': keys, 'id': str(item.id)})
 
     return items
 
@@ -188,7 +194,13 @@ def get_empty(request, obj, handle_post=True):
         keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
 
     if obj.yield_type:
-        f = forms.get_empty_form(models.get_model_for_type(obj.yield_type), data)
+        try:
+            f = forms.get_empty_form(models.get_model_for_type(obj.yield_type), data)
+        except ValueError:
+            f = None
+            print("Need to figure this out")
+    else:
+        f = None
 
     all_valid = keys or f
     for k in keys:
@@ -235,7 +247,9 @@ def append_container(request, data, obj):
     return render(request, 'edit_option_composite.html', data)
 
 
-def edit_container(request, data, obj):
+def edit_container(request, data, s):
+    obj = s.value
+
     data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
     data['yield_type'] = obj.yield_type
 
@@ -273,6 +287,9 @@ def edit_container(request, data, obj):
         changes.append("Added: %s" % added)
 
     if changes:
+        change_event = {'type': "change", 'option': s.option.get_name(), 'val': obj.json(), 'zeek_type': "set[addr]",#obj.type_name,
+                        'uuid': s.option.sensor.uuid}
+        send_event('test', 'message', change_event)
         data['success'] = ["Changes saved: " + "\n".join(changes)]
 
     data['items'] = get_container_items(obj, request)
@@ -285,17 +302,14 @@ def edit_option(request, id):
 
     data = {"setting": s, "type": models.get_name_of_model(s.value)}
     if isinstance(s.value, models.ZeekContainer):
-        return edit_container(request, data, s.value)
+        return edit_container(request, data, s)
     else:
         form = forms.get_form_for_model(s.value, request.POST)
         if request.POST:
             old = str(s.value)
             form.save()
             new = str(s.value)
-            if s.option.namespace:
-                name = "%s::%s" % (s.option.namespace, s.option.name)
-            else:
-                name = s.option.name
+            name = s.option.get_name()
             change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': data['type'], 'uuid': s.option.sensor.uuid}
             send_event('test', 'message', change_event)
             data['success'] = ["Changes saved: %s -> %s" % (old, new)]

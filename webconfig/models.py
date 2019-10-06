@@ -6,6 +6,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.timezone import make_aware
 import ipaddress
+import json
 import re
 from eZeeKonfigurator.utils import get_index_types, get_yield_type
 
@@ -91,6 +92,9 @@ class Option(models.Model):
     sensor = models.ForeignKey('Sensor', on_delete=models.CASCADE)
 
     def __str__(self):
+        return self.get_name()
+
+    def get_name(self):
         if self.namespace:
             name = "%s::%s" % (self.namespace, self.name)
         else:
@@ -615,7 +619,9 @@ class ZeekContainer(ZeekVal):
     vector of Z = table[count] of Z: Python list [a, b, c]
     """
 
-    type_name = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table"), ('r', "record")])
+    ctr_type = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table"), ('r', "record")])
+
+    type_name = models.CharField("How Zeek identifies the name, e.g. table[count, port] of string", max_length=512)
 
     # This is mostly just a container that other values will point to, but we store some data as shortcuts
     index_types = models.CharField(max_length=1024, default="<unknown>", null=True, blank=True)
@@ -631,7 +637,7 @@ class ZeekContainer(ZeekVal):
         #
         #  set: a list. If it's a multi-key set, a list of lists.
 
-        if self.type_name == 's':
+        if self.ctr_type == 's':
             assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_type_name_display())
 
             for val in vals:
@@ -641,7 +647,7 @@ class ZeekContainer(ZeekVal):
                 self.create_child(val)
 
         #  vector: a list of single values
-        elif self.type_name == 'v':
+        elif self.ctr_type == 'v':
             assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_type_name_display())
 
             position = 0
@@ -650,7 +656,7 @@ class ZeekContainer(ZeekVal):
                 position += 1
 
         #  table: a dict of k/v pairs
-        elif self.type_name == 't':
+        elif self.ctr_type == 't':
             assert isinstance(vals, dict), "trying to parse '%s' as a dict (%s)" % (type(vals), self.get_type_name_display())
 
             for k, v in vals.items():
@@ -667,13 +673,13 @@ class ZeekContainer(ZeekVal):
         index_offset = 0
 
         # First, we create our item
-        if self.type_name == 'v':
+        if self.ctr_type == 'v':
             item = ZeekContainerItem(parent=self, v=ZeekVal.create(self.yield_type, idx_vals), position=key_val)
             item.save()
             return
-        elif self.type_name == 's':
+        elif self.ctr_type == 's':
             item = ZeekContainerItem(parent=self)
-        elif self.type_name == 't':
+        elif self.ctr_type == 't':
             item = ZeekContainerItem(parent=self, v=ZeekVal.create(self.yield_type, key_val))
 
         item.save()
@@ -701,16 +707,34 @@ class ZeekContainer(ZeekVal):
 
         count = self.items.all().count()
 
-        if self.type_name == 's' or self.type_name == 't':
+        if self.ctr_type == 's' or self.ctr_type == 't':
             data = [str(i) for i in self.items.all()[offset:offset+limit]]
-        elif self.type_name == 'v':
+        elif self.ctr_type == 'v':
             data = [str(i.v) for i in self.items.all().order_by('position')[offset:offset+limit]]
 
 
         if count > offset + limit:
             data.append("...and %d more elements..." % (count - limit - offset))
 
-        return fmt[self.type_name] % separator[self.type_name].join(data)
+        return fmt[self.ctr_type] % separator[self.ctr_type].join(data)
+
+    def json(self):
+        # A set is a list
+        if self.ctr_type == 's':
+            return [i.json() for i in self.items.all()]
+        # And so is a vector
+        elif self.ctr_type == 'v':
+            return [i.json() for i in self.items.all()]
+        # A set is a dict
+        elif self.ctr_type == 't':
+            result = {}
+            for i in self.items.all():
+                key_val = i.json()
+                if len(get_index_types(self.index_types)) > 1:
+                    key_val = json.dumps(key_val)
+                result[key_val] = i.v.json()
+            return result
+
 
 
 class ZeekContainerItem(ZeekVal):
@@ -738,6 +762,15 @@ class ZeekContainerItem(ZeekVal):
 
         return result
 
+    def json(self):
+        keys = self.keys.all()
+        if len(keys) > 1:
+            return tuple([x.json() for x in keys])
+        elif len(keys) == 1:
+            return keys[0].json()
+        else:
+            return self.v.json()
+
 
 class ZeekContainerKey(ZeekVal):
     """Because a container can have multiple keys for a single item, we store each one separately."""
@@ -751,6 +784,8 @@ class ZeekContainerKey(ZeekVal):
     object_id = models.PositiveIntegerField()
     v = GenericForeignKey()
 
+    def json(self):
+        return self.v.json()
 
 class ZeekPattern(ZeekContainer):
     """A value with Zeek 'pattern' type. A regex."""
@@ -858,5 +893,5 @@ def get_name_of_model(model):
     for k, v in atomic_type_mapping.items():
         if isinstance(model, v):
             return k
-    else:
-        return model._meta.model_name
+
+    return model._meta.model_name

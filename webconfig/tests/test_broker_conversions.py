@@ -1,7 +1,7 @@
 from django.test import TestCase
-import json
 
 from eZeeKonfigurator.utils import *
+from webconfig import models
 
 
 class TestUtilsJSON(TestCase):
@@ -207,6 +207,19 @@ class TestSetSerialization(TestUtilsJSON):
                 for elem in o:
                     self.assertIn(elem, result)
 
+    def test_json_function(self):
+        l = [1, 2, 3, 4]
+        m = models.ZeekVal.create("set[count]", l)
+        self.assertEqual(l, m.json())
+
+        l = [0.1, 0.2, 0.3, 0.4]
+        m = models.ZeekVal.create("set[double]", l)
+        self.assertEqual(l, m.json())
+
+        l = ["a", "b", "c", "d"]
+        m = models.ZeekVal.create("set[string]", l)
+        self.assertEqual(l, m.json())
+
 
 class TestVectorSerialization(TestUtilsJSON):
     valid_to_json = [(tuple(x), [to_json(i) for i in x]) for x in [
@@ -236,6 +249,20 @@ class TestVectorSerialization(TestUtilsJSON):
                 result = broker.Data.to_py(from_json(i, "vector of %s" % t))
                 self.assertEqual(result, o)
 
+    def test_json_function(self):
+        l = [1, 2, 3, 4]
+        m = models.ZeekVal.create("vector of count", l)
+        self.assertEqual(l, m.json())
+
+        l = [0.1, 0.2, 0.3, 0.4]
+        m = models.ZeekVal.create("vector of double", l)
+        self.assertEqual(l, m.json())
+
+        l = ["a", "b", "c", "d"]
+        m = models.ZeekVal.create("vector of string", l)
+        self.assertEqual(l, m.json())
+
+
 
 class TestDictSerialization(TestUtilsJSON):
     valid_to_json = [({k:v for k, v in x.items()}, to_json(x)) for x in [
@@ -254,6 +281,16 @@ class TestDictSerialization(TestUtilsJSON):
          ("0/tcp", "13/icmp"): "trouble"}, "table[port, port] of string")
     ]
     ]
+
+    def test_json_function(self):
+        l = {'one': 1, 'two': 2}
+        m = models.ZeekContainer.create("table[string] of count", l)
+        self.assertEqual({'one': 1, 'two': 2}, m.json())
+
+        l = {('one', "22/tcp"): 1, ('two', "80/tcp"): 2}
+        m = models.ZeekContainer.create("table[string, port] of count", l)
+        self.assertEqual({'["one", {"port": 22, "proto": "tcp"}]': 1, '["two", {"port": 80, "proto": "tcp"}]': 2}, m.json())
+
 
     def test_from_json(self):
         for i, o, type_name in self.valid_from_json:
