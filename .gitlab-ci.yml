@@ -9,7 +9,7 @@ variables:
 test:
   stage: test
   before_script:
-    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox scl-utils
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox scl-utils psycopg2-binary
     - yum install -y http://www6.atomicorp.com/channels/atomic/centos/7/x86_64/RPMS/atomic-heimdal-runtime-7.5.0-8.el7.x86_64.rpm
     - yum install -y http://www6.atomicorp.com/channels/atomic/centos/7/x86_64/RPMS/atomic-sqlite-3.8.5-6803.el7.art.x86_64.rpm
     - cp /opt/atomicorp/atomic/root/usr/bin/sqlite3 /usr/bin/
