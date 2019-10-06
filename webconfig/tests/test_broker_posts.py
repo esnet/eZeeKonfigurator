@@ -30,3 +30,9 @@ class TestProblematic(TestImport):
     items = [
         {'name': "HTTP::http_methods", 'type': "set[string]", 'doc': "Stuff and things", 'val': to_json(set(["MKCOL", "PUT", "CONNECT", "PROPPATCH", "COPY", "TRACE", "LOCK", "POLL", "UNLOCK", "DELETE", "HEAD", "REPORT", "SEARCH", "SUBSCRIBE", "POST", "MOVE", "GET", "BMOVE", "PROPFIND", "OPTIONS"]))}
         ]
+
+
+class TestFromServer(TestCase):
+    def test_set_enum_of_interval(self):
+        v = {"Analyzer::ANALYZER_FTP": 360.0, "Analyzer::ANALYZER_SSH": 3600.0}
+        from_json(v, "table[enum] of interval")

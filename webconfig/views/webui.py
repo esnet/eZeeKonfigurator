@@ -287,7 +287,7 @@ def edit_container(request, data, s):
         changes.append("Added: %s" % added)
 
     if changes:
-        change_event = {'type': "change", 'option': s.option.get_name(), 'val': obj.json(), 'zeek_type': "set[addr]",#obj.type_name,
+        change_event = {'type': "change", 'option': s.option.get_name(), 'val': obj.json(), 'zeek_type': obj.type_name,
                         'uuid': s.option.sensor.uuid}
         send_event('test', 'message', change_event)
         data['success'] = ["Changes saved: " + "\n".join(changes)]
