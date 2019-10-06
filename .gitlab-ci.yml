@@ -18,7 +18,7 @@ test:
     - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
-    - pip3 install -r requirements.txt
+    - python3 setup.py install
     - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py runserver 1>&2 &
     - bash -c "until curl -s http://localhost:8000; do sleep 1; done"
   script:

@@ -7,12 +7,10 @@ import uuid as uuidlib
 from django import db
 from django.core import management
 from django.contrib.auth.models import User
-from django.contrib.staticfiles import finders
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
-from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django.urls import reverse
 
 from django_eventstream import send_event
@@ -48,45 +46,9 @@ def home(request):
     sensors = models.Sensor.objects.all()
     if not sensors:
         management.call_command('collectstatic', verbosity=0, interactive=False)
-        return _setup_create_client_pkg(request)
+        return render(request, 'setup_3.html')
 
     return list_sensors(request)
-
-
-def _git_client_get_version():
-    path = 'ezeekonfigurator_client/refs/heads/master'
-    full_path = finders.find(path)
-    if full_path:
-        with open(full_path, 'r') as head:
-            return head.read()
-    else:
-        raise FileNotFoundError("Could not determine where static files should live.")
-
-
-def _git_copy_server_files():
-    """Run 'git update-server-info -f' and copy the resulting files into the static dir"""
-
-    for path in sys.path:
-        p = os.path.join(path, "ezeekonfigurator_client")
-        if os.path.exists(p):
-            client_repo = git.Repo(p)
-            client_repo.git.update_server_info("-f")
-            break
-
-    shutil.copytree(os.path.join(p, ".git"), "webconfig/static/ezeekonfigurator_client")
-
-
-def _setup_create_client_pkg(request):
-    data = {'server': request.build_absolute_uri('').strip('/'), 'package_location': '/static/ezeekonfigurator_client'}
-
-    try:
-        data['version'] = _git_client_get_version()
-    except FileNotFoundError:
-        _git_copy_server_files()
-
-    data['version'] = _git_client_get_version()
-
-    return render(request, 'setup_3.html', data)
 
 
 def _setup_create_user(request):
