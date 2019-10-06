@@ -110,7 +110,7 @@ async def server_loop():
                             uuid = data['uuid']
                             val = from_json(data['val'], data['zeek_type'])
                             endpoint.publish(topic + "/" + uuid,
-                                             broker.zeek.Event("eZeeKonfigurator::option_change_request", name, val, True))
+                                             broker.zeek.Event("eZeeKonfigurator::option_change_request", name, val))
                             log.debug("Received change event from eZeeKonfigurator: %s", data)
 
             except (ConnectionError, aiohttp.ClientPayloadError, asyncio.TimeoutError):

@@ -628,7 +628,8 @@ class ZeekContainer(ZeekVal):
     yield_type = models.CharField(max_length=1024, default="<unknown>", null=True, blank=True)
 
     def parse(self, type_name, val):
-        return {'type_name': type_name[0].lower(),
+        return {'ctr_type': type_name[0].lower(),
+                'type_name': type_name,
                 'index_types': str(get_index_types(type_name)),
                 'yield_type': get_yield_type(type_name)}
 
