@@ -1,7 +1,19 @@
+import os
 import setuptools
 
-with open('requirements.txt') as f:
+with open('requirements_common.txt') as f:
     requirements = f.read().splitlines()
+
+# Check if we're running in a CI environment
+if os.environ.get("CI"):
+    env = os.environ.get('ENVIRONMENT', "DEVELOPMENT")
+else:
+    env = os.environ.get('ENVIRONMENT', "PRODUCTION")
+
+# Additional requirements for development or production
+if env:
+    with open('requirements_%s.txt' % env.lower()) as f:
+        requirements += f.read().splitlines()
 
 setuptools.setup(
     name="eZeeKonfigurator",
