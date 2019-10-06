@@ -439,7 +439,7 @@ class ZeekPort(ZeekVal):
         return str(self)
 
     def json(self):
-        return {'port': self.num, 'proto': self.get_proto_display()}
+        return str(self)
 
 
 class ZeekAddr(ZeekVal):
