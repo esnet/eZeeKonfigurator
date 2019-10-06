@@ -144,11 +144,11 @@ def brokerd_info(request, ver, brokerd_uuid):
     except:
         return error('json_parsing_error')
 
-    if not settings.BROKERD_AUTH_ENABLED:
-        JsonResponse({'success': True})
-
-    # This should exist from @authorized_brokerd
-    m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
+    if getattr(settings, "BROKERD_AUTH_ENABLED", False):
+        m = models.BrokerDaemon.objects.get_or_create(uuid=brokerd_uuid, authorized=True)
+    else:
+        # This should exist from @authorized_brokerd
+        m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
 
     try:
         ip = data["ip"]
