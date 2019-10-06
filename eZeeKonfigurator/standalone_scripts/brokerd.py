@@ -40,7 +40,7 @@ def send_to_server(path, data):
         if debug:
             for o in data['options']:
                 with os.path.join("errors", "%s.json" % o['name']) as f:
-                    f.write(o['val'])
+                    f.write(data)
                 log.debug("Dumped value to %s", os.path.join("errors", "%s.json" % o['name']))
         log.error("Could not send data to %s" % path)
         return

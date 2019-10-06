@@ -15,7 +15,7 @@ def error(text, status=400):
 
 def authorized_brokerd(view_func):
     def wrapper(*args, **kw):
-        if not settings.BROKERD_AUTH_ENABLED:
+        if not getattr(settings, "BROKERD_AUTH_ENABLED", False):
             return view_func(*args, **kw)
         try:
             uuid = kw['brokerd_uuid']
@@ -144,6 +144,9 @@ def brokerd_info(request, ver, brokerd_uuid):
     except:
         return error('json_parsing_error')
 
+    if not settings.BROKERD_AUTH_ENABLED:
+        JsonResponse({'success': True})
+
     # This should exist from @authorized_brokerd
     m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
 
@@ -162,51 +165,3 @@ def brokerd_info(request, ver, brokerd_uuid):
         return error('brokerd_model_save', 500)
 
     return JsonResponse({'success': True})
-
-#
-#
-# @csrf_exempt
-# def client_api_option_list(request, ver, sensor_uuid):
-#     if str(ver) != '1':
-#         return HttpResponse('Error')
-#
-#     data = json.loads(request.body)['data']
-#     sensor = models.Sensor.objects.get(uuid=sensor_uuid)
-#     for k, v in data['options'].items():
-#         namespace = "GLOBAL"
-#         if '::' in k:
-#             namespace, name = k.split('::', 1)
-#         else:
-#             name = k
-#         #print(v)
-#         option, opt_created = models.Option.objects.get_or_create(sensor=sensor, namespace=namespace, name=name,
-#                                                                   datatype=v['type_name'], docstring=v['doc'])
-#         option.save()
-#
-#         try:
-#             setting = models.Setting.objects.get(option=option)
-#         except models.Setting.DoesNotExist:
-#             setting = None
-#         if not setting:
-#             zeek_val = models.parse_atomic(v['type_name'], v['value'])
-#             if not zeek_val:
-#                 # Try to parse it as a complex type
-#                 if v['type_name'].startswith('set['):
-#                     zeek_val = models.ZeekSet.create(v['type_name'], v['value'])
-#                 elif v['type_name'].startswith('vector of '):
-#                     zeek_val = models.ZeekVector.create(v['type_name'], v['value'])
-#                 else:
-#                     print("Don't know what to do with", v['type_name'], v['value'])
-#                     continue
-#
-#             if zeek_val:
-#                 zeek_val.save()
-#                 setting = models.Setting.objects.create(option=option, value=zeek_val)
-#                 setting.save()
-#
-#         else:
-#             # Didn't create it, just update the value.
-#             setting.value.parse(v['type_name'], v['value'])
-#             setting.save()
-#
-#     return HttpResponse('')
