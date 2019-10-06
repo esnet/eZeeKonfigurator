@@ -380,6 +380,8 @@ class ZeekPatternTestCase(ZeekAtomicValTestCase):
         m = models.ZeekVal.create("pattern", [r"^?((^?(foo)$?)|(^?(bar)$?))$?", r"^?(.|\\n)*((^?(foo)$?)|(^?(bar)$?))"])
         m.save()
         self.assertEqual(str(m), "/foo/ | /bar/")
+        self.assertEqual(3, models.ZeekPattern.objects.all().count())
+        self.assertEqual(2, models.ZeekContainerItem.objects.all().count())
 
 
     def test_add_foo_or_bar(self):
@@ -619,7 +621,7 @@ class CompositeTestCase(TestCase):
         val_type = 'count'
 
         m = models.ZeekVal.create("set[%s]" % val_type, val)
-        self.assertEqual(m.type_name, 's')
+        self.assertEqual(m.type_name, 'set[count]')
         self.assertEqual(m.index_types, "['%s']" % val_type)
         self.assertIsNone(m.yield_type)
         self.assertEqual(len(m.items.all()), len(val))
@@ -631,7 +633,7 @@ class CompositeTestCase(TestCase):
 
     def test_set_medium(self):
         m = models.ZeekVal.create("set[count, enum, port, addr, subnet]", [[1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"]])
-        self.assertEqual(m.type_name, 's')
+        self.assertEqual(m.type_name, 'set[count, enum, port, addr, subnet]')
         self.assertEqual(m.index_types, "['count', 'enum', 'port', 'addr', 'subnet']")
         self.assertIsNone(m.yield_type)
         self.assertEqual(len(m.items.all()), 1)
@@ -646,7 +648,7 @@ class CompositeTestCase(TestCase):
 
     def test_set_hard(self):
         m = models.ZeekVal.create("set[record { arg:int; addl:int; }, record { nested:record { arg1:int; arg2:int; }; arg2:port; }]", [])
-        self.assertEqual(m.type_name, 's')
+        self.assertEqual(m.type_name, 'set[record { arg:int; addl:int; }, record { nested:record { arg1:int; arg2:int; }; arg2:port; }]')
         self.assertEqual(m.index_types, "['record { arg:int; addl:int; }', 'record { nested:record { arg1:int; arg2:int; }; arg2:port; }']")
         self.assertIsNone(m.yield_type)
 

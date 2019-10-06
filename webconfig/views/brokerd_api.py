@@ -93,6 +93,8 @@ def sensor_option(request, ver, brokerd_uuid):
     except models.Sensor.DoesNotExist:
         return error('sensor_not_found', 404)
 
+    successes = 0
+
     for opt in options:
         name = opt['name']
         namespace = None
@@ -121,7 +123,10 @@ def sensor_option(request, ver, brokerd_uuid):
             setting = models.Setting.objects.create(option=o, value=v)
             setting.save()
 
-    return JsonResponse({'success': True})
+        if setting:
+            successes += 1
+
+    return JsonResponse({'success': successes == len(options)})
 
 
 @csrf_exempt

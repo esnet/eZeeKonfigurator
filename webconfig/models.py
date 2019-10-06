@@ -788,6 +788,7 @@ class ZeekContainerKey(ZeekVal):
     def json(self):
         return self.v.json()
 
+
 class ZeekPattern(ZeekContainer):
     """A value with Zeek 'pattern' type. A regex."""
     # This is a list of patterns OR-ed together. Patterns point here.
@@ -804,7 +805,7 @@ class ZeekPattern(ZeekContainer):
         exact, anywhere = val
         i = 0
         for part in self.get_exact_parts(exact):
-            p = ZeekPattern(yield_type='pattern', v=part, type_name='p')
+            p = ZeekPattern(yield_type='pattern', v=part, ctr_type='p', type_name='pattern')
             p.save()
             e = ZeekContainerItem(v=p, position=i, parent=self)
             e.save()
