@@ -40,7 +40,7 @@ def home(request):
         return _setup_create_user(request)
 
     # If we have no brokerd, add one.
-    auth = not getattr(settings.BROKERD_AUTH_ENABLED, "FALSE")
+    auth = not getattr(settings.BROKERD_AUTH_ENABLED, False)
     if not models.BrokerDaemon.objects.filter(authorized=auth, port__isnull=False):
         return _setup_create_brokerd(request)
 
