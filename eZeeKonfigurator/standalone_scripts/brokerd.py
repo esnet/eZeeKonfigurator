@@ -11,8 +11,12 @@ import requests
 from eZeeKonfigurator.utils import from_json, to_json
 
 
-#logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
+debug = True
+
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+if debug:
+    logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
+
 log = logging.getLogger(__name__)
 
 batch_size = 0
@@ -24,7 +28,7 @@ bind_address = os.environ.get("BROKERD_BIND_ADDR", "")
 bind_port = os.environ.get("BROKERD_BIND_PORT", None)
 ez_url = os.environ.get("URL", "http://localhost:8000/")
 asgi_url = os.environ.get("ASGI_URL", ez_url + "events/")
-uuid = os.environ.get("UUID", "not-set")
+uuid = os.environ.get("UUID", "00112233-4455-6677-8899-aabbccddeeff")
 
 
 def send_to_server(path, data):
@@ -33,6 +37,11 @@ def send_to_server(path, data):
     try:
         r = requests.post(url, json=data)
     except:
+        if debug:
+            for o in data['options']:
+                with os.path.join("errors", "%s.json" % o['name']) as f:
+                    f.write(o['val'])
+                log.debug("Dumped value to %s", os.path.join("errors", "%s.json" % o['name']))
         log.error("Could not send data to %s" % path)
         return
 
@@ -94,6 +103,9 @@ async def broker_loop():
 
             if opt_list:
                 send_to_server("sensor_option", {'sensor_uuid': uuid, 'options': opt_list})
+
+        else:
+            log.info("Received unhandled event: %s", ev.name())
 
 
 async def server_loop():
