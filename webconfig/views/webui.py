@@ -6,6 +6,7 @@ import uuid as uuidlib
 
 from django import db
 from django.core import management
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404, render, redirect
@@ -39,7 +40,8 @@ def home(request):
         return _setup_create_user(request)
 
     # If we have no brokerd, add one.
-    if not models.BrokerDaemon.objects.filter(authorized=True, port__isnull=False):
+    auth = not getattr(settings.BROKERD_AUTH_ENABLED, "FALSE")
+    if not models.BrokerDaemon.objects.filter(authorized=auth, port__isnull=False):
         return _setup_create_brokerd(request)
 
     # If we have no sensors, help the user to add one.
