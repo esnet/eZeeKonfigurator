@@ -9,7 +9,7 @@ def get_index_types(type_name):
         return []
 
     # e.g. table[count,port] of table[foo,bar]
-    return type_name.split('[')[1].split(']')[0].split(', ').split(',')
+    return type_name.split('[')[1].split(']')[0].replace(', ', ',').split(',')
 
 
 def get_yield_type(type_name):
