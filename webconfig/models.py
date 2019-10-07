@@ -4,6 +4,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models.signals import pre_save, post_save
+from django.dispatch import receiver
 from django.utils.timezone import make_aware
 import ipaddress
 import json
@@ -121,9 +123,9 @@ class ZeekVal(models.Model):
     # Which setting(s) do we belong to?
     settings = GenericRelation(Setting)
 
-    parent_container_item = GenericRelation('ZeekContainerItem')
-    parent_record_field = GenericRelation('ZeekRecordField')
-    parent_pattern = GenericRelation('ZeekPattern')
+    # parent_container_item = GenericRelation('ZeekContainerItem')
+    # parent_record_field = GenericRelation('ZeekRecordField')
+    # parent_pattern = GenericRelation('ZeekPattern')
 
     comment = models.CharField("Value comment", help_text="What is this significance of the chosen value?", max_length=1024, null=True, blank=True)
 
@@ -610,7 +612,7 @@ class ZeekRecordField(ZeekVal):
                                related_name="fields", on_delete=models.CASCADE)
 
     def _format(self, string_function):
-        if not self.val:
+        if not self.val or not self.name:
             return None
 
         return "$" + self.name + " = " + getattr(self.val, string_function)()
@@ -661,32 +663,32 @@ class ZeekContainer(ZeekVal):
         #  set: a list. If it's a multi-key set, a list of lists.
 
         if self.ctr_type == 's':
-            assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_type_name_display())
+            assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_ctr_type_display())
 
-            for val in vals:
-                if not isinstance(val, list):
-                    val = [val]
-
-                self.create_child(val)
+            # for val in vals:
+            #     if not isinstance(val, list):
+            #         val = [val]
+            #
+            #     self.create_child(val)
 
         #  vector: a list of single values
         elif self.ctr_type == 'v':
-            assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_type_name_display())
+            assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_ctr_type_display())
 
-            position = 0
-            for val in vals:
-                self.create_child(val, position)
-                position += 1
+            # position = 0
+            # for val in vals:
+            #     self.create_child(val, position)
+            #     position += 1
 
         #  table: a dict of k/v pairs
         elif self.ctr_type == 't':
-            assert isinstance(vals, dict), "trying to parse '%s' as a dict (%s)" % (type(vals), self.get_type_name_display())
+            assert isinstance(vals, dict), "trying to parse '%s' as a dict (%s)" % (type(vals), self.get_ctr_type_display())
 
-            for k, v in vals.items():
-                if not isinstance(k, list) and not isinstance(k, tuple):
-                    k = [k]
-
-                self.create_child(k, v)
+            # for k, v in vals.items():
+            #     if not isinstance(k, list) and not isinstance(k, tuple):
+            #         k = [k]
+            #
+            #     self.create_child(k, v)
 
         else:
             raise NotImplementedError
@@ -734,11 +736,17 @@ class ZeekContainer(ZeekVal):
             data = [str(i) for i in self.items.all()[offset:offset+limit]]
         elif self.ctr_type == 'v':
             data = [str(i.v) for i in self.items.all().order_by('position')[offset:offset+limit]]
+        else:
+            data = ["UNKNOWN: '%s'" % self.type_name]
 
         if count > offset + limit:
             data.append("...and %d more elements..." % (count - limit - offset))
 
-        return fmt[self.ctr_type] % separator[self.ctr_type].join(data)
+        return fmt.get(self.ctr_type, '[%s] WARNING TYPE NOT SET') % separator.get(self.ctr_type, " # ").join(data)
+
+    def clean_type_name(self):
+        if not self.type_name:
+            raise ValidationError("Type name is not set")
 
     def json(self):
         # A set is a list
@@ -758,6 +766,36 @@ class ZeekContainer(ZeekVal):
             return result
 
 
+@receiver(pre_save, sender=ZeekContainer)
+def update_container_pre(sender, instance, **kwargs):
+    if instance.type_name:
+        instance.ctr_type = instance.type_name[0]
+        instance.index_types = str(get_index_types(instance.type_name))
+        instance.yield_type = get_yield_type(instance.type_name)
+
+
+@receiver(post_save, sender=ZeekContainer)
+def update_container_post(sender, instance, **kwargs):
+    if not instance.v:
+        instance.v = ""
+    idx_types = get_index_types(instance.index_types)
+    str_val = instance.v.strip('[').rstrip(']')
+    if str_val and len(idx_types) == 1:
+        # We expect comma-delimeted values
+        if idx_types[0] != 'string':
+            # Strings can have embedded commas, so we'll deal with them separately.
+            vals = [x.strip() for x in str_val.split(',')]
+            for existing in instance.items.all():
+                if str(existing) not in vals:
+                    print(existing, instance.items.all(), vals)
+                    existing.delete()
+            existing_vals = [str(x) for x in instance.items.all()]
+            for v in vals:
+                if v not in existing_vals:
+                    instance.create_child([v])
+                    existing_vals.append(v)
+
+
 class ZeekContainerItem(ZeekVal):
     """This is a single item in the container. It can be thought of as a key-value pair in a Python dict."""
 
@@ -767,7 +805,7 @@ class ZeekContainerItem(ZeekVal):
     # We'll have a reverse relationship of keys
 
     # This is our yield value. It's optional (e.g. sets).
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     v = GenericForeignKey()
 

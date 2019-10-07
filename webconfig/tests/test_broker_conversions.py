@@ -298,8 +298,6 @@ class TestDictSerialization(TestUtilsJSON):
                 result = broker.Data.to_py(from_json(i, type_name))
                 self.assertEqual(len(result), len(o))
 
-                print(i, result)
-
                 r_k = list(result.keys())
                 o_k = list(o.keys())
                 for elem in r_k:
@@ -321,3 +319,15 @@ class TestInvalid(TestCase):
             from_json(self, "Test")
 
 
+class TestRecordSerialization(TestCase):
+    def test_vector_of_record(self):
+        val = json.loads(json.dumps([["0.0.0.0/0", None, None, "Action::IGNORE"],
+                         ["0.0.0.0/0", None, None, "Action::PAGE"],
+                         ["0.0.0.0/0", None, "Scan::Address_Scan", "Action::Ignore"],
+                         [None, "local_test", None, "Action::PAGE"],
+                         [None, "local_nets", None, "Action::PAGE"],
+                         [None, "neighbor_nets", None, "Action::PAGE"]]))
+        type = "vector of record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }"
+
+        m = models.ZeekVal.create("set[subnet]", ["0.0.0.0/0"])
+        self.assertEqual(from_json(val,type), "")

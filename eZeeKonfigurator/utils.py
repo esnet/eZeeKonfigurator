@@ -88,6 +88,7 @@ def to_json(val):
 
 def from_json(val, type_name):
     """Convert JSON types to broker."""
+
     if val is None:
         v = val
     # Native types

@@ -639,6 +639,25 @@ class CompositeTestCase(TestCase):
 
         self.assertEqual(str(m), "{1, 2}")
 
+
+    def test_set_update(self):
+        m = models.ZeekVal.create("set[count]", [1, 2])
+        m.save()
+        self.assertEqual(str(m), "{1, 2}")
+        m.items.all()[0].delete()
+        self.assertEqual(str(m), "{2}")
+        m.v = "[3, 4, 5]"
+        m.save()
+        self.assertEqual(str(m), "{3, 4, 5}")
+        m.v = "1"
+        m.save()
+        self.assertEqual(str(m), "{1}")
+        m.v = "1, 2, 3, 5, 5, 5"
+        m.save()
+        self.assertEqual(str(m), "{1, 2, 3, 5}")
+
+
+
     def test_set_medium(self):
         m = models.ZeekVal.create("set[count, enum, port, addr, subnet]", [[1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"]])
         self.assertEqual(m.type_name, 'set[count, enum, port, addr, subnet]')

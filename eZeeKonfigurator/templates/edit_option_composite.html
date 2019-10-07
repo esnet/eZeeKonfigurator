@@ -33,7 +33,7 @@
                         <td><a href="{{ item.edit_link }}">{{ item.readonly }}</a></td>
                     {% endif %}
                     <td>
-                        <input type="checkbox" name="delete_{{ item.id }}">
+                        <input type="checkbox" name="delete_{{ item.obj.id }}">
                     </td>
                 </tr>
             {% endfor %}

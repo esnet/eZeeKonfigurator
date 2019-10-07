@@ -151,7 +151,7 @@ def get_container_items_table(obj, request, handle_post=True):
                 elif isinstance(item.v, models.ZeekRecord):
                     t = "record"
 
-                result = {'keys': keys, 'id': str(item.id), 'readonly': str(item.v)}
+                result = {'keys': keys, 'id': str(item.id), 'readonly': str(item)}
                 if t:
                     result['edit_link'] = reverse('edit_value', kwargs={'id': item.v.id, 'val_type': t})
 
@@ -211,15 +211,16 @@ def get_empty(request, obj, handle_post=True):
         except ValueError:
             if obj.yield_type.startswith('record'):
                 for t in utils.get_record_types(obj.yield_type):
-                    idx_types = utils.get_index_types(t['field_type'])
-                    if not idx_types:
-                        raise NotImplementedError("Don't know how to handle this record with no index types")
-                    if len(idx_types) > 1:
-                        raise NotImplementedError("Don't know how to handle this record with multiple index types")
-                    m = models.get_model_for_type(idx_types[0])
+                    #
+                    # idx_types = utils.get_index_types(t['field_type'])
+                    # if not idx_types:
+                    #     raise NotImplementedError("Don't know how to handle this record with no index types")
+                    # if len(idx_types) > 1:
+                    #     raise NotImplementedError("Don't know how to handle this record with multiple index types")
+                    m = models.get_model_for_type(t['field_type'])
 
                     record_fields.append({'name': t['field_name'], 'type': t['field_type']})
-                    f.append(forms.get_empty_form(m, data, required=False, prefix=t['field_name']))
+                    f.append(forms.get_empty_form(m, data, required=False, prefix=t['field_name'], type_name=t['field_type']))
             else:
                 for idx in utils.get_index_types(obj.yield_type):
                     f.append(forms.get_empty_form(models.get_model_for_type(idx), data))
@@ -305,19 +306,21 @@ def edit_container(request, data, s):
     data['errors'] = []
     changes = []
 
+    old = str(obj)
+
     if request.POST:
         for item in obj.items.all().order_by('position'):
             for key in item.keys.all():
                 f = forms.get_form_for_model(key.v, request.POST)
                 valid, msg = update_val(f, key.v)
-                if valid and msg:
-                    changes.append(msg)
 
             if item.v:
                 f = forms.get_form_for_model(item.v, request.POST)
                 valid, msg = update_val(f, item.v)
-                if valid and msg:
-                    changes.append(msg)
+
+        new = str(obj)
+        if old != new:
+            changes.append("Updated %s -> %s" % (old, new))
 
         # Now we delete
         for k, v in request.POST.items():
@@ -330,6 +333,7 @@ def edit_container(request, data, s):
                     changes.append("Deleted " + val)
                 except obj.DoesNotExist:
                     data['errors'].append("Could not find object '%s' to delete." % k)
+
 
     data['empty'], added = get_empty(request, obj, False)
 
@@ -359,9 +363,9 @@ def edit_option(request, id):
     else:
         form = forms.get_form_for_model(s.value, request.POST)
         if request.POST:
-            old = str(s.value)
+            old = str(s)
             form.save()
-            new = str(s.value)
+            new = str(s)
             name = s.option.get_name()
             change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': models.get_name_of_model(s.value), 'uuid': s.option.sensor.uuid}
             send_event('test', 'message', change_event)

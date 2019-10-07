@@ -1,11 +1,11 @@
-from django.forms import modelform_factory, modelformset_factory
+from django.forms import modelform_factory, HiddenInput
 
 from webconfig import models
 
 default_fields = ("v",)
 
 
-def get_factory(model, function=modelform_factory):
+def get_factory(model, function=modelform_factory, type_name=""):
     if isinstance(model, models.ZeekBool) or model is models.ZeekBool:
         return function(models.ZeekBool, fields=("v",))
 
@@ -37,17 +37,22 @@ def get_factory(model, function=modelform_factory):
     elif isinstance(model, models.ZeekPattern) or model is models.ZeekPattern:
         return function(models.ZeekPattern, fields=default_fields)
 
+    elif isinstance(model, models.ZeekContainer) or model is models.ZeekContainer:
+        if not type_name:
+            raise ValueError("Type name is required for a container")
+        return function(models.ZeekContainer, fields=("v", "type_name"), widgets={'type_name': HiddenInput(attrs={'value': type_name})})
+
     raise ValueError("Unknown model type %s" % models.get_name_of_model(model))
 
 
-def get_form_for_model(model, post_data=None, required=True):
+def get_form_for_model(model, post_data=None, required=True, type_name=""):
     prefix = str(type(model)) + str(model.pk)
-    factory = get_factory(model)
+    factory = get_factory(model, type_name=type_name)
     return factory(post_data, instance=model, prefix=prefix, use_required_attribute=required)
 
 
-def get_empty_form(model, post_data=None, prefix="", required=True):
+def get_empty_form(model, post_data=None, prefix="", required=True, type_name=""):
     prefix = models.get_name_of_model(model) + prefix
-    factory = get_factory(model, modelform_factory)
+    factory = get_factory(model, modelform_factory, type_name=type_name)
     return factory(post_data, prefix=prefix, use_required_attribute=required)
 
