@@ -618,7 +618,7 @@ class ZeekRecordTestCase(TestCase):
         self.assertEqual(str(m), "{[1] = [$arg = 1, $addl = -1]}")
 
     def test_serialization(self):
-        m = models.ZeekVal.create('record { arg:int; addl:int; }', [1, -1])
+        m = models.ZeekVal.create('record { arg:int; addl:int; }', [1])
         self.assertEqual(m.json(), [1, -1])
         print(from_json(m.json(), 'record { arg:int; addl:int; }'))
 

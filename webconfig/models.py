@@ -559,7 +559,7 @@ class ZeekRecord(ZeekVal):
 
     def create_children(self, val):
         types = get_record_types(self.field_types)
-        for i in range(len(types)):
+        for i in range(len(val)):
             f = types[i]
             field = ZeekRecordField.objects.create(name=f['field_name'], val_type=f['field_type'], index_pos=i, parent=self)
             if val[i]:
@@ -586,7 +586,10 @@ class ZeekRecord(ZeekVal):
         return self._format('__str__')
 
     def json(self):
-        return [x.json() for x in self.fields.all()]
+        result = []
+        for f in self.fields.all():
+            result.append(f.json())
+        return result
 
 
 class ZeekRecordField(ZeekVal):
@@ -740,7 +743,7 @@ class ZeekContainer(ZeekVal):
             return [i.json() for i in self.items.all()]
         # And so is a vector
         elif self.ctr_type == 'v':
-            return [i.json() for i in self.items.all()]
+            return [i.v.json() for i in self.items.all()]
         # A set is a dict
         elif self.ctr_type == 't':
             result = {}
