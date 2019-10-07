@@ -46,6 +46,7 @@ def get_record_types(type_name):
 
     return data
 
+
 def to_json(val):
     """Convert broker types to JSON."""
     if val is None:
@@ -162,7 +163,7 @@ def from_json(val, type_name):
         types = get_record_types(type_name)
         data = []
         for i in range(len(val)):
-            field_type = types[i]
+            field_type = types[i]['field_type']
             data.append(from_json(val[i], field_type))
         return broker.Data(data)
 
