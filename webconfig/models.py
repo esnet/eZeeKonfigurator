@@ -587,8 +587,11 @@ class ZeekRecord(ZeekVal):
 
     def json(self):
         result = []
-        for f in self.fields.all():
-            result.append(f.json())
+        for t in get_record_types(self.field_types):
+            try:
+                result.append(self.fields.get(name=t['field_name']).json())
+            except ZeekRecordField.DoesNotExist:
+                result.append(None)
         return result
 
 
