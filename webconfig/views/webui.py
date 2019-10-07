@@ -271,6 +271,8 @@ def get_empty(request, obj, handle_post=True):
             k = models.ZeekContainerKey(parent=ctr_item, v=key_val, index_offset=i)
             k.save()
 
+        return {'forms': f, 'keys': keys}, str(ctr_item)
+
     return {'forms': f, 'keys': keys, 'record_fields': record_fields}, False
 
 
@@ -282,11 +284,12 @@ def append_container(request, data, obj):
     changes = []
 
     data['empty'], added = get_empty(request, obj)
+
     if added:
         changes.append("Added: %s" % added)
-
-    if changes:
-        data['success'] = ["Changes saved: " + "\n".join(changes)]
+        change_event = {'type': "change", 'option': data['setting'].option.get_name(), 'val': obj.json(), 'zeek_type': obj.type_name,
+                        'uuid': data['setting'].option.sensor.uuid}
+        send_event('test', 'message', change_event)
 
     data['items'] = get_container_items(obj, request, False)
 
@@ -329,14 +332,15 @@ def edit_container(request, data, s):
                     data['errors'].append("Could not find object '%s' to delete." % k)
 
     data['empty'], added = get_empty(request, obj, False)
+
     if added:
         changes.append("Added: %s" % added)
 
     if changes:
+        data['success'] = ["Changes saved: " + "\n".join(changes)]
         change_event = {'type': "change", 'option': s.option.get_name(), 'val': obj.json(), 'zeek_type': obj.type_name,
                         'uuid': s.option.sensor.uuid}
         send_event('test', 'message', change_event)
-        data['success'] = ["Changes saved: " + "\n".join(changes)]
 
     data['items'] = get_container_items(obj, request)
 
