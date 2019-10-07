@@ -585,6 +585,9 @@ class ZeekRecord(ZeekVal):
     def __str__(self):
         return self._format('__str__')
 
+    def json(self):
+        return [x.json() for x in self.fields.all()]
+
 
 class ZeekRecordField(ZeekVal):
     """A field within a ZeekRecord."""
@@ -608,6 +611,11 @@ class ZeekRecordField(ZeekVal):
 
     def __str__(self):
         return self._format('__str__')
+
+    def json(self):
+        if self.val:
+            return self.val.json()
+        return None
 
 
 class ZeekContainer(ZeekVal):
