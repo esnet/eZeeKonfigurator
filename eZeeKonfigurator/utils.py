@@ -8,6 +8,9 @@ def get_index_types(type_name):
     if not ('[' in type_name and ']' in type_name):
         return []
 
+    if type_name.startswith('vector of'):
+        return ['count']
+
     # e.g. table[count,port] of table[foo,bar]
     return type_name.split('[')[1].split(']')[0].replace(', ', ',').split(',')
 
