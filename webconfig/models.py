@@ -8,7 +8,7 @@ from django.utils.timezone import make_aware
 import ipaddress
 import json
 import re
-from eZeeKonfigurator.utils import get_index_types, get_yield_type
+from eZeeKonfigurator.utils import get_index_types, get_yield_type, get_record_types
 
 
 def get_model_for_type(type_name):
@@ -478,10 +478,13 @@ class ZeekSubnet(ZeekVal):
     v = models.GenericIPAddressField("Network address")
     cidr = models.PositiveSmallIntegerField("CIDR")
 
+    field = models.CharField("Subnet in CIDR notation", max_length=64)
+
     def parse_native_type(self, type_name, val):
         assert isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network), "trying to parse '%s' as ipnetwork" % type(val)
 
-        return {'v': val.network_address.compressed.lower(), 'cidr': val.prefixlen}
+        return {'v': val.network_address.compressed.lower(), 'cidr': val.prefixlen,
+                'field': "%s/%d" % (val.network_address.compressed.lower(), val.prefixlen)}
 
     def parse(self, type_name, val):
         if not (isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network)):
@@ -503,6 +506,11 @@ class ZeekSubnet(ZeekVal):
 
     def zeek_export(self):
         return self.json()
+
+    def clean(self):
+        ip = ipaddress.ip_network(self.field, strict=False)
+        self.v = ip.network_address.compressed.lower()
+        self.cidr = int(ip.prefixlen)
 
 
 class ZeekEnum(ZeekVal):
@@ -545,24 +553,15 @@ class ZeekRecord(ZeekVal):
 
     def parse(self, type_name, val):
         # record { arg:int; addl:int; }
-        r, args = type_name.split('{ ', 1)
-        args = args.rsplit('}', 1)[0]
-        return {'field_types': args}
+        return {'field_types': type_name }
 
     def create_children(self, val):
-        s = self.field_types
-        for v in range(len(val)):
-            n = s.split(':', 1)[0]
-            s = s[len(n)+1:]
-            if s.startswith('record {'):
-                raise NotImplementedError("TODO: nested records")
-            else:
-                t = s.split('; ', 1)[0]
-                s = s[len(t)+2:]
-
-            field = ZeekRecordField.objects.create(name=n, val_type=t, index_pos=v, parent=self)
-            if val[v]:
-                zeek_val = ZeekVal.create(t, val[v])
+        types = get_record_types(self.field_types)
+        for i in range(len(types)):
+            f = types[i]
+            field = ZeekRecordField.objects.create(name=f['field_name'], val_type=f['field_type'], index_pos=i, parent=self)
+            if val[i]:
+                zeek_val = ZeekVal.create(f['field_type'], val[i])
                 zeek_val.parent = field
                 zeek_val.save()
 
@@ -675,14 +674,6 @@ class ZeekContainer(ZeekVal):
 
         else:
             raise NotImplementedError
-
-    def clean(self):
-        try:
-            j = json.loads(self.v)
-        except TypeError:
-            raise ValidationError("Could not parse field as JSON")
-
-        self.create_children(j)
 
     def create_child(self, idx_vals, key_val=None):
         index_types = get_index_types(self.index_types)

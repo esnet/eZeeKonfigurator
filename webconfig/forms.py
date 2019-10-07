@@ -29,25 +29,25 @@ def get_factory(model, function=modelform_factory):
     elif isinstance(model, models.ZeekAddr) or model is models.ZeekAddr:
         return function(models.ZeekAddr, fields=default_fields)
     elif isinstance(model, models.ZeekSubnet) or model is models.ZeekSubnet:
-        return function(models.ZeekSubnet, fields=("v", "cidr", "comment"))
+        return function(models.ZeekSubnet, fields=("field", "comment"))
 
     elif isinstance(model, models.ZeekEnum) or model is models.ZeekEnum:
         return function(models.ZeekEnum, fields=default_fields)
 
-    else:
-        raise ValueError("Unknown model type %s" % models.get_name_of_model(model))
+    elif isinstance(model, models.ZeekPattern) or model is models.ZeekPattern:
+        return function(models.ZeekPattern, fields=default_fields)
+
+    raise ValueError("Unknown model type %s" % models.get_name_of_model(model))
 
 
-def get_form_for_model(model, post_data=None):
+def get_form_for_model(model, post_data=None, required=True):
     prefix = str(type(model)) + str(model.pk)
     factory = get_factory(model)
+    return factory(post_data, instance=model, prefix=prefix, use_required_attribute=required)
 
-    return factory(post_data, instance=model, prefix=prefix)
 
-
-def get_empty_form(model, post_data=None, prefix=""):
+def get_empty_form(model, post_data=None, prefix="", required=True):
     prefix = models.get_name_of_model(model) + prefix
     factory = get_factory(model, modelform_factory)
-
-    return factory(post_data, prefix=prefix)
+    return factory(post_data, prefix=prefix, use_required_attribute=required)
 

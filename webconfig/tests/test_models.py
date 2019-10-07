@@ -603,7 +603,11 @@ class ZeekRecordTestCase(TestCase):
 
     def test_simple_parse(self):
         m = models.ZeekRecord().parse("record { arg:int; addl:int; }", "blah")
-        self.assertEqual(m, {'field_types': {'arg': 'int', 'addl': 'int'}})
+        self.assertEqual(m, {'field_types': "record { arg:int; addl:int; }"})
+
+    def test_complex_parse(self):
+        m = models.ZeekRecord().parse("record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }", "blah")
+        self.assertEqual(m, {'field_types': "record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }"})
 
     def test_create(self):
         m = models.ZeekVal.create('record { arg:int; addl:int; }', [1, -1])

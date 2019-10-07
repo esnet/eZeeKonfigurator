@@ -135,16 +135,17 @@ def get_container_items_table(obj, request, handle_post=True):
         data = request.POST
 
     for item in obj.items.all().order_by('position'):
+        # Each item is an element in our container.
         keys = [{'obj': k, 'form': forms.get_form_for_model(k.v, data)} for k in item.keys.all()]
         if item.v:
             try:
                 items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys})
             except ValueError:
-                # Composite type
+                # Our value is a composite type.
                 t = ""
 
                 if isinstance(item.v, models.ZeekPattern):
-                    t = "record"
+                    t = "pattern"
                 elif isinstance(item.v, models.ZeekContainer):
                     t = "table"
                 elif isinstance(item.v, models.ZeekRecord):
@@ -196,31 +197,46 @@ def get_empty(request, obj, handle_post=True):
 
     keys = []
     idx_types = utils.get_index_types(obj.index_types)
+    print(idx_types)
     for i in range(len(idx_types)):
         keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
 
+    f = []
+    record_fields = []
+
     if obj.yield_type:
         try:
-            f = forms.get_empty_form(models.get_model_for_type(obj.yield_type), data)
+            f.append(forms.get_empty_form(models.get_model_for_type(obj.yield_type), data))
         except ValueError:
-            f = None
-            #raise NotImplementedError("Need to figure this out") # TODO
-    else:
-        f = None
+            if obj.yield_type.startswith('record'):
+                for t in utils.get_record_types(obj.yield_type):
+                    idx_types = utils.get_index_types(t['field_type'])
+                    if not idx_types:
+                        raise NotImplementedError("Don't know how to handle this record with no index types")
+                    if len(idx_types) > 1:
+                        raise NotImplementedError("Don't know how to handle this record with multiple index types")
+                    m = models.get_model_for_type(idx_types[0])
+
+                    record_fields.append({'name': t['field_name'], 'type': t['field_type']})
+                    f.append(forms.get_empty_form(m, required=False))
+            else:
+                for idx in utils.get_index_types(obj.yield_type):
+                    f.append(forms.get_empty_form(models.get_model_for_type(idx), data))
 
     all_valid = keys or f
     for k in keys:
         if not k['form'].is_valid():
             all_valid = False
 
-    if f and not f.is_valid():
-        all_valid = False
+    for idx_form in f:
+        if not idx_form.is_valid():
+            all_valid = False
 
     if all_valid:
-        if f:
-            item_val = f.save()
+        for idx_form in f:
+            item_val = idx_form.save()
             ctr_item = models.ZeekContainerItem(parent=obj, v=item_val, position=len(obj.items.all()))
-        else:
+        if not f:
             ctr_item = models.ZeekContainerItem(parent=obj, position=len(obj.items.all()))
         ctr_item.save()
 
@@ -229,9 +245,9 @@ def get_empty(request, obj, handle_post=True):
             k = models.ZeekContainerKey(parent=ctr_item, v=key_val, index_offset=i)
             k.save()
 
-        return {'form': f, 'keys': keys}, str(ctr_item)
+        return {'forms': f, 'keys': keys}, str(ctr_item)
 
-    return {'form': f, 'keys': keys}, False
+    return {'forms': f, 'keys': keys, 'record_fields': record_fields}, False
 
 
 def append_container(request, data, obj):

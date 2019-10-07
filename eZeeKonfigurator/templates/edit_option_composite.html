@@ -4,7 +4,7 @@
 {% block form %}
 
     <style>.col-form-label{ visibility: hidden; padding: 0; height: 0; display: block; line-height: 0; overflow: hidden;}</style>
-
+    {% if items %}
     <form action="{{ edit_url }}" method="post">
         {% csrf_token %}
         <table class="table">
@@ -46,6 +46,7 @@
         </div>
         <button type="submit" class="btn btn-success">Save</button>
     </form>
+    {% endif %}
     {% if append_url %}
     <hr>
     <h3>Add New Element</h3>
@@ -57,7 +58,10 @@
                 {% for i in idx_types %}
                     <th scope="col">Key ({{ i }})</th>
                 {% endfor %}
-                {% if yield_type %}
+                {% for r in empty.record_fields %}
+                <th scope="col">{{ r.name }} ({{ r.type }})</th>
+                {% endfor %}
+                {% if not empty.record_fields and yield_type %}
                     <th scope="col">Value ({{ yield_type }})</th>
                 {% endif %}
             </tr>
@@ -67,7 +71,9 @@
                 {% for k in empty.keys %}
                     <td>{{ k.form|crispy }}</td>
                 {% endfor %}
-                <td>{{ empty.form|crispy }}</td>
+                {% for k in empty.forms %}
+                <td>{{ k|crispy }}</td>
+                {% endfor %}
             </tr>
             </tbody>
         </table>
@@ -79,7 +85,7 @@
         <button type="submit" class="btn btn-success">Save</button>
     </form>
 {% endif %}
-
+{{ empty|pprint }}
 {% endblock %}
 {% block type_doc %}
     {% if type|length_is:"1" %}
