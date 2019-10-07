@@ -158,6 +158,14 @@ def from_json(val, type_name):
 
         return broker.Data(data)
 
+    elif type_name.startswith('record {'):
+        types = get_record_types(type_name)
+        data = []
+        for i in range(len(val)):
+            field_type = types[i]
+            data.append(from_json(val[i], field_type))
+        return broker.Data(data)
+
     else:
         raise NotImplementedError("Converting type", type_name)
 
