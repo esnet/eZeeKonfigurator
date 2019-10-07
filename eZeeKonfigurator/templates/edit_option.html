@@ -27,7 +27,12 @@ eZeeKonfigurator: Edit {% if setting.option.namespace %}{{ setting.option.namesp
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{% url "list_options" %}" >Options</a></li>
     <li class="breadcrumb-item"><a href="#">{% if setting.option.namespace %}{{ setting.option.namespace }}{% else %}GLOBAL{% endif %}</a></li>
+    {% if not child %}
     <li class="breadcrumb-item active" aria-current="page">{{ setting.option.name }}: {{ setting.option.datatype }}</li>
+    {% else %}
+    <li class="breadcrumb-item" aria-current="page">{{ setting.option.name }}: {{ setting.option.datatype }}</li>
+    <li class="breadcrumb-item active" aria-current="page">{{ child.name }}: {{ child.datatype }}</li>
+  {% endif %}
   </ol>
 </nav>
     <div class="alert alert-info" role="alert">

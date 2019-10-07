@@ -77,6 +77,7 @@ def get_auth(status):
     return s.get(status, {})
 
 
+
 def get_sensor_count(request, sensor_type):
     result = models.Sensor.objects.filter(**get_auth(sensor_type)).count()
     if result:
@@ -125,7 +126,7 @@ def update_val(form, instance):
     return True, result
 
 
-def get_container_items(obj, request, handle_post=True):
+def get_container_items_table(obj, request, handle_post=True):
     items = []
 
     # Empty request.POST causes this to not validate
@@ -137,14 +138,55 @@ def get_container_items(obj, request, handle_post=True):
         keys = [{'obj': k, 'form': forms.get_form_for_model(k.v, data)} for k in item.keys.all()]
         if item.v:
             try:
-                items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys, 'id': str(item.id)})
+                items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys})
             except ValueError:
                 # Composite type
-                items.append({'keys': keys, 'id': str(item.id), 'readonly': str(item.v)})
+                t = ""
+
+                if isinstance(item.v, models.ZeekPattern):
+                    t = "record"
+                elif isinstance(item.v, models.ZeekContainer):
+                    t = "table"
+                elif isinstance(item.v, models.ZeekRecord):
+                    t = "record"
+
+                result = {'keys': keys, 'id': str(item.id), 'readonly': str(item.v)}
+                if t:
+                    result['edit_link'] = reverse('edit_value', kwargs={'id': item.v.id, 'val_type': t})
+
+                items.append(result)
         else:
             items.append({'keys': keys, 'id': str(item.id)})
 
     return items
+
+
+def get_container_items_record(obj, request, handle_post=True):
+    items = []
+
+    # Empty request.POST causes this to not validate
+    data = None
+    if request.POST and handle_post:
+        data = request.POST
+
+    for item in obj.fields.all().order_by('index_pos'):
+        try:
+            if item.val:
+                items.append(
+                    {'obj': item, 'form': forms.get_form_for_model(item.val, data)})
+        except ValueError:
+            # Composite type
+            items.append({'id': str(item.id), 'readonly': str(item.v)})
+
+    return items
+
+
+def get_container_items(obj, request, handle_post=True):
+    if isinstance(obj, models.ZeekContainer):
+        return get_container_items_table(obj, request, handle_post)
+
+    if isinstance(obj, models.ZeekRecord):
+        return get_container_items_record(obj, request, handle_post)
 
 
 def get_empty(request, obj, handle_post=True):
@@ -162,7 +204,7 @@ def get_empty(request, obj, handle_post=True):
             f = forms.get_empty_form(models.get_model_for_type(obj.yield_type), data)
         except ValueError:
             f = None
-            raise NotImplementedError("Need to figure this out") # TODO
+            #raise NotImplementedError("Need to figure this out") # TODO
     else:
         f = None
 
@@ -264,7 +306,10 @@ def edit_container(request, data, s):
 def edit_option(request, id):
     s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
 
-    data = {"setting": s, "type": models.get_name_of_model(s.value)}
+    args = {'id': id}
+    data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
+            "append_url": reverse('append_option', kwargs=args)}
+
     if isinstance(s.value, models.ZeekContainer):
         return edit_container(request, data, s)
     else:
@@ -285,11 +330,42 @@ def append_option(request, id):
     """Only used for containers."""
     s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
 
-    data = {"setting": s, "type": models.get_name_of_model(s.value)}
+    args = {'id': id}
+    data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
+            "append_url": reverse('append_option', kwargs=args)}
+
     if not isinstance(s.value, models.ZeekContainer):
         return HttpResponse(400, "Can only append to a container.")
 
     return append_container(request, data, s.value)
+
+
+def edit_value(request, val_type, id):
+    if val_type not in ["table", "pattern", "record"]:
+        return HttpResponse(400, "Only supported for composite types")
+    data = {}
+    if val_type == "table":
+        data['val'] = get_object_or_404(models.ZeekContainer, pk=id)
+    elif val_type == "pattern":
+        data['val'] = get_object_or_404(models.ZeekPattern, pk=id)
+    elif val_type == "record":
+        data['val'] = get_object_or_404(models.ZeekRecord, pk=id)
+
+    if data['val'].parent_container_item:
+        data['setting'] = data['val'].parent_container_item
+    elif data['val'].parent_pattern:
+        data['setting'] = data['val'].parent_pattern
+    elif data['val'].parent_record_field:
+        data['setting'] = data['val'].parent_record_field
+
+    data['child'] = {'datatype': data['val'].type_name }
+    data['items'] = get_container_items(data['val'], request)
+    data['edit_url'] = reverse('edit_value', kwargs={'id': id, 'val_type': val_type})
+
+    return render(request, 'edit_option_composite_nested.html', data)
+
+def append_value(request, val_type, id):
+    return
 
 
 def export_options(request, ver, sensor_uuid):

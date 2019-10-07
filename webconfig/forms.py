@@ -34,9 +34,6 @@ def get_factory(model, function=modelform_factory):
     elif isinstance(model, models.ZeekEnum) or model is models.ZeekEnum:
         return function(models.ZeekEnum, fields=default_fields)
 
-    elif isinstance(model, models.ZeekContainer) or model is models.ZeekContainer:
-        return function(models.ZeekContainer, fields=default_fields)
-
     else:
         raise ValueError("Unknown model type %s" % models.get_name_of_model(model))
 

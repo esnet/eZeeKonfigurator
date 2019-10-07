@@ -121,6 +121,10 @@ class ZeekVal(models.Model):
     # Which setting(s) do we belong to?
     settings = GenericRelation(Setting)
 
+    parent_container_item = GenericRelation('ZeekContainerItem')
+    parent_record_field = GenericRelation('ZeekRecordField')
+    parent_pattern = GenericRelation('ZeekPattern')
+
     comment = models.CharField("Value comment", help_text="What is this significance of the chosen value?", max_length=1024, null=True, blank=True)
 
     @classmethod
@@ -156,7 +160,7 @@ class ZeekVal(models.Model):
 
 class ZeekBool(ZeekVal):
     """A value with Zeek 'bool' type. Valid options are 'T' or 'F'."""
-    v = models.BooleanField("True?", )
+    v = models.BooleanField("True?")
 
     def zeek_export(self):
         if self.v:
@@ -901,7 +905,23 @@ atomic_type_mapping = {
 
 def get_name_of_model(model):
     for k, v in atomic_type_mapping.items():
-        if isinstance(model, v):
+        if isinstance(model, v) or model is v:
             return k
 
     return model._meta.model_name
+
+
+def get_doc_types(model):
+    for k, v in atomic_type_mapping.items():
+        if isinstance(model, v) or model is v:
+            return [k]
+
+    if isinstance(model, ZeekPattern) or model is ZeekPattern:
+        return ["pattern"]
+
+    types = []
+
+    if isinstance(model, ZeekContainer) or model is ZeekContainer:
+        types = [model.type_name.split(' ')[0].split('[')[0]]
+
+    return types
