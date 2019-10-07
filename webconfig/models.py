@@ -263,7 +263,7 @@ class ZeekCount(ZeekVal):
 
     def clean_fields(self, exclude=None):
         # We can't have negatives
-        if self.v_lsb < 0 or self.v_msb < 0:
+        if (self.v_lsb and self.v_lsb < 0) or (self.v_msb and self.v_msb < 0):
             raise ValidationError("count must be positive")
 
     def clean(self):
@@ -508,6 +508,8 @@ class ZeekSubnet(ZeekVal):
         return self.json()
 
     def clean(self):
+        if not self.field:
+            return
         ip = ipaddress.ip_network(self.field, strict=False)
         self.v = ip.network_address.compressed.lower()
         self.cidr = int(ip.prefixlen)
@@ -718,7 +720,6 @@ class ZeekContainer(ZeekVal):
             data = [str(i) for i in self.items.all()[offset:offset+limit]]
         elif self.ctr_type == 'v':
             data = [str(i.v) for i in self.items.all().order_by('position')[offset:offset+limit]]
-
 
         if count > offset + limit:
             data.append("...and %d more elements..." % (count - limit - offset))

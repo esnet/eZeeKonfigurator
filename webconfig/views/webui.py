@@ -195,9 +195,10 @@ def get_empty(request, obj, handle_post=True):
     if request.POST and handle_post:
         data = request.POST
 
+    print(data)
+
     keys = []
     idx_types = utils.get_index_types(obj.index_types)
-    print(idx_types)
     for i in range(len(idx_types)):
         keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
 
@@ -218,7 +219,7 @@ def get_empty(request, obj, handle_post=True):
                     m = models.get_model_for_type(idx_types[0])
 
                     record_fields.append({'name': t['field_name'], 'type': t['field_type']})
-                    f.append(forms.get_empty_form(m, required=False))
+                    f.append(forms.get_empty_form(m, data, required=False, prefix=t['field_name']))
             else:
                 for idx in utils.get_index_types(obj.yield_type):
                     f.append(forms.get_empty_form(models.get_model_for_type(idx), data))
@@ -229,13 +230,14 @@ def get_empty(request, obj, handle_post=True):
             all_valid = False
 
     for idx_form in f:
-        if not idx_form.is_valid():
+        if not idx_form.is_valid() and not record_fields:
             all_valid = False
 
-    if all_valid:
+    if all_valid and not record_fields:
         for idx_form in f:
-            item_val = idx_form.save()
-            ctr_item = models.ZeekContainerItem(parent=obj, v=item_val, position=len(obj.items.all()))
+            if idx_form.is_valid():
+                item_val = idx_form.save()
+                ctr_item = models.ZeekContainerItem(parent=obj, v=item_val, position=len(obj.items.all()))
         if not f:
             ctr_item = models.ZeekContainerItem(parent=obj, position=len(obj.items.all()))
         ctr_item.save()
@@ -246,6 +248,28 @@ def get_empty(request, obj, handle_post=True):
             k.save()
 
         return {'forms': f, 'keys': keys}, str(ctr_item)
+
+    elif all_valid and record_fields:
+        record = models.ZeekRecord(field_types=obj.yield_type)
+        record.save()
+
+        for i in range(len(f)):
+            idx_form = f[i]
+            field = record_fields[i]
+
+            if idx_form.is_valid():
+                item_val = idx_form.save()
+                field_item = models.ZeekRecordField(parent=record, val=item_val, index_pos=i,
+                                                    name=field['name'], val_type=field['type'])
+                field_item.save()
+
+        ctr_item = models.ZeekContainerItem(parent=obj, position=len(obj.items.all()), v=record)
+        ctr_item.save()
+
+        for i in range(len(keys)):
+            key_val = keys[i]['form'].save()
+            k = models.ZeekContainerKey(parent=ctr_item, v=key_val, index_offset=i)
+            k.save()
 
     return {'forms': f, 'keys': keys, 'record_fields': record_fields}, False
 

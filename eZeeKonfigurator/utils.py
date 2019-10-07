@@ -29,11 +29,7 @@ def get_record_types(type_name):
 
     while type_name:
         type_name = type_name.lstrip(' ')
-        try:
-            field_name, type_name = type_name.split(':', 1)
-        except ValueError:
-            print("Dunno", type_name)
-            break
+        field_name, type_name = type_name.split(':', 1)
         field_type = ""
         depth = 0
         for i in range(len(type_name)):
@@ -153,7 +149,6 @@ def from_json(val, type_name):
             if len(index_types) > 1:
                 index = ()
                 k = json.loads(k)
-                print(k, index_types)
                 for i in range(len(index_types)):
                     index = index + tuple([from_json(k[i], index_types[i])])
             else:
