@@ -108,6 +108,16 @@ class Option(models.Model):
         return name
 
 
+class Change(models.Model):
+    options = models.ManyToManyField(Option)
+    msg = models.CharField("Summary of the change. e.g. Increased timeout due to long-lived connections", max_length=1024)
+    user = models.CharField(max_length=64)
+    time = models.DateTimeField(auto_created=True)
+
+    def __str__(self):
+        return "[%s] %s: %s" % (self.time, self.user, self.msg)
+
+
 class Setting(models.Model):
     option = models.ForeignKey('Option', on_delete=models.CASCADE)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -123,9 +133,9 @@ class ZeekVal(models.Model):
     # Which setting(s) do we belong to?
     settings = GenericRelation(Setting)
 
-    # parent_container_item = GenericRelation('ZeekContainerItem')
-    # parent_record_field = GenericRelation('ZeekRecordField')
-    # parent_pattern = GenericRelation('ZeekPattern')
+    #parent_container_item = GenericRelation('ZeekContainerItem', content_type_field="parent", object_id_field="parent_id")
+    #parent_record_field = GenericRelation('ZeekRecordField', content_type_field="parent", object_id_field="parent_id")
+    #parent_pattern = GenericRelation('ZeekPattern', content_type_field="parent", object_id_field="parent_id")
 
     comment = models.CharField("Value comment", help_text="What is this significance of the chosen value?", max_length=1024, null=True, blank=True)
 
@@ -134,6 +144,7 @@ class ZeekVal(models.Model):
         model = get_model_for_type(type_name)
         kwargs = model().parse(type_name, val)
         m = model(**kwargs)
+        m.full_clean()
         m.save()
         m.create_children(val)
         return m
@@ -213,8 +224,26 @@ class ZeekInt(ZeekVal):
 
         return self.parse_native_type(type_name, val)
 
+    def clean_v(self):
+        try:
+            int(self.v)
+        except ValueError:
+            raise ValidationError("Not an integer")
+
     def json(self):
         return self.v
+
+
+def validate_count(value):
+        if value is None:
+            return
+        try:
+            v = int(value)
+            if v < 0:
+                raise ValidationError("Counts cannot be negative")
+            return
+        except ValidationError as e:
+            raise ValidationError("Could not parse as integer for conversion to count:", value) from e
 
 
 class ZeekCount(ZeekVal):
@@ -226,7 +255,7 @@ class ZeekCount(ZeekVal):
 
     v_msb = models.BigIntegerField(default=0)
     v_lsb = models.BigIntegerField()
-    v = models.CharField("value", max_length=20)
+    v = models.CharField("value", max_length=20, validators=[validate_count])
     max_int = 9223372036854775807
 
     def zeek_export(self):
@@ -269,6 +298,11 @@ class ZeekCount(ZeekVal):
             raise ValidationError("count must be positive")
 
     def clean(self):
+        try:
+            int(self.v)
+        except ValueError:
+            raise ValidationError("Could not convert '%s' to an integer." % str(self.v))
+
         self.v_msb, self.v_lsb, self.v = self.convert_to_vals(int(self.v))
         if self.v_msb and self.v_lsb != self.max_int:
             raise ValidationError("count must be stored as least-significant and most-significant halves")
@@ -360,7 +394,7 @@ class ZeekInterval(ZeekVal):
 
 class ZeekString(ZeekVal):
     """A value with Zeek 'string' type."""
-    v = models.CharField("value", max_length=64*1024)
+    v = models.CharField("value", max_length=64*1024, null=True, blank=True)
 
     def parse_native_type(self, type_name, val):
         assert isinstance(val, str), "trying to parse '%s' as string" % type(val)
@@ -500,11 +534,7 @@ class ZeekSubnet(ZeekVal):
         return "%s/%d" % (self.v, self.cidr)
 
     def json(self):
-        if ':' in self.v:
-            f = "[%s]/%d"
-        else:
-            f = "%s/%d"
-        return f % (self.v, self.cidr)
+        return "%s/%d" % (self.v, self.cidr)
 
     def zeek_export(self):
         return self.json()
@@ -654,10 +684,9 @@ class ZeekContainer(ZeekVal):
         return {'ctr_type': type_name[0].lower(),
                 'type_name': type_name,
                 'index_types': str(get_index_types(type_name)),
-                'yield_type': get_yield_type(type_name),
-                'v': str(val)}
+                'yield_type': get_yield_type(type_name)}
 
-    def create_children(self, vals):
+    def parse_native_type(self, vals):
         # Depending on the datatype, we expect:
         #
         #  set: a list. If it's a multi-key set, a list of lists.
@@ -665,30 +694,30 @@ class ZeekContainer(ZeekVal):
         if self.ctr_type == 's':
             assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_ctr_type_display())
 
-            # for val in vals:
-            #     if not isinstance(val, list):
-            #         val = [val]
-            #
-            #     self.create_child(val)
+            for val in vals:
+                if not isinstance(val, list):
+                    val = [val]
+
+                self.create_child(val)
 
         #  vector: a list of single values
         elif self.ctr_type == 'v':
             assert isinstance(vals, list), "trying to parse '%s' as a list (%s)" % (type(vals), self.get_ctr_type_display())
 
-            # position = 0
-            # for val in vals:
-            #     self.create_child(val, position)
-            #     position += 1
+            position = 0
+            for val in vals:
+                self.create_child(val, position)
+                position += 1
 
         #  table: a dict of k/v pairs
         elif self.ctr_type == 't':
             assert isinstance(vals, dict), "trying to parse '%s' as a dict (%s)" % (type(vals), self.get_ctr_type_display())
 
-            # for k, v in vals.items():
-            #     if not isinstance(k, list) and not isinstance(k, tuple):
-            #         k = [k]
-            #
-            #     self.create_child(k, v)
+            for k, v in vals.items():
+                if not isinstance(k, list) and not isinstance(k, tuple):
+                    k = [k]
+
+                self.create_child(k, v)
 
         else:
             raise NotImplementedError
@@ -711,8 +740,8 @@ class ZeekContainer(ZeekVal):
 
         # Now we create all the keys
 
-        if isinstance(idx_vals, tuple):
-            idx_vals = list(idx_vals)
+        if not isinstance(idx_vals, list):
+            idx_vals = list([idx_vals])
 
         for c, t in zip(idx_vals, index_types):
             key_value = ZeekVal.create(t, c)
@@ -768,10 +797,25 @@ class ZeekContainer(ZeekVal):
 
 @receiver(pre_save, sender=ZeekContainer)
 def update_container_pre(sender, instance, **kwargs):
-    if instance.type_name:
-        instance.ctr_type = instance.type_name[0]
-        instance.index_types = str(get_index_types(instance.type_name))
-        instance.yield_type = get_yield_type(instance.type_name)
+    # This updates our type name(s)
+    instance.ctr_type = instance.type_name[0]
+    instance.index_types = str(get_index_types(instance.type_name))
+    instance.yield_type = get_yield_type(instance.type_name)
+
+
+def parse_string_composite(string):
+    data = string.split('\n')
+    if len(data) == 1:
+        data = string.split(',')
+
+    vals = []
+    for s in data:
+        s = s.strip()
+        if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+            s = s[1:-1]
+        vals.append(s)
+
+    return vals
 
 
 @receiver(post_save, sender=ZeekContainer)
@@ -780,19 +824,47 @@ def update_container_post(sender, instance, **kwargs):
         instance.v = ""
     idx_types = get_index_types(instance.index_types)
     str_val = instance.v.strip('[').rstrip(']')
-    if str_val and len(idx_types) == 1:
-        # We expect comma-delimeted values
-        if idx_types[0] != 'string':
-            # Strings can have embedded commas, so we'll deal with them separately.
-            vals = [x.strip() for x in str_val.split(',')]
+
+    # We build k:v pairs, depending on the type of container
+
+    items = []
+
+    # First up, a vector. We track the index via position.
+    if str_val and instance.ctr_type == 'v':
+        if instance.yield_type != 'string':
+            data = str_val.split(',')
+        else:
+            data = parse_string_composite(str_val)
+
+        for i in range(len(data)):
+            existing = instance.items.filter(position=i)
+            if len(existing) == 1:
+                if data[i] and data[i] != str(existing[0]):
+                    existing[0].delete()
+                else:
+                    continue
+
+            instance.create_child(data[i], i)
+
+        return
+
+    # Next is a set
+    if str_val and len(idx_types):
+        for i in idx_types:
+            # We expect comma-delimited values
+            if i != 'string':
+                # Strings can have embedded commas, so we'll deal with them separately.
+                vals = [x.strip() for x in str_val.split(',')]
+            else:
+                vals = parse_string_composite(str_val)
+
             for existing in instance.items.all():
                 if str(existing) not in vals:
-                    print(existing, instance.items.all(), vals)
                     existing.delete()
             existing_vals = [str(x) for x in instance.items.all()]
             for v in vals:
-                if v not in existing_vals:
-                    instance.create_child([v])
+                if v and v not in existing_vals:
+                    instance.create_child(v)
                     existing_vals.append(v)
 
 
@@ -814,6 +886,9 @@ class ZeekContainerItem(ZeekVal):
     def __str__(self):
         keys = self.keys.all()
         result = ", ".join([str(k) for k in keys])
+        if not result:
+            return str(self.v)
+
         if len(keys) > 1 or self.v:
             result = "[%s]" % result
         if self.v:

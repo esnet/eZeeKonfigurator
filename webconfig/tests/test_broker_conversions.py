@@ -321,12 +321,12 @@ class TestInvalid(TestCase):
 
 class TestRecordSerialization(TestCase):
     def test_vector_of_record(self):
-        val = json.loads(json.dumps([["0.0.0.0/0", None, None, "Action::IGNORE"],
-                         ["0.0.0.0/0", None, None, "Action::PAGE"],
-                         ["0.0.0.0/0", None, "Scan::Address_Scan", "Action::Ignore"],
-                         [None, "local_test", None, "Action::PAGE"],
-                         [None, "local_nets", None, "Action::PAGE"],
-                         [None, "neighbor_nets", None, "Action::PAGE"]]))
+        val = json.loads(json.dumps([[["0.0.0.0/0"], None, None, ["Action::IGNORE"]],
+                         [["0.0.0.0/0"], None, None, ["Action::PAGE"]],
+                         [["0.0.0.0/0"], None, ["Scan::Address_Scan", "Action::Ignore"]],
+                         [None, ["local_test"], None, ["Action::PAGE"]],
+                         [None, ["local_nets"], None, ["Action::PAGE"]],
+                         [None, ["neighbor_nets"], None, ["Action::PAGE"]]]))
         type = "vector of record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }"
 
         m = models.ZeekVal.create("set[subnet]", ["0.0.0.0/0"])

@@ -1,4 +1,4 @@
-from django.forms import modelform_factory, HiddenInput
+from django.forms import modelform_factory, HiddenInput, Textarea
 
 from webconfig import models
 
@@ -40,7 +40,10 @@ def get_factory(model, function=modelform_factory, type_name=""):
     elif isinstance(model, models.ZeekContainer) or model is models.ZeekContainer:
         if not type_name:
             raise ValueError("Type name is required for a container")
-        return function(models.ZeekContainer, fields=("v", "type_name"), widgets={'type_name': HiddenInput(attrs={'value': type_name})})
+        widgets = {'type_name': HiddenInput(attrs={'value': type_name})}
+        if type_name == "set[string]":
+            widgets['v'] = Textarea
+        return function(models.ZeekContainer, fields=("v", "type_name"), widgets=widgets)
 
     raise ValueError("Unknown model type %s" % models.get_name_of_model(model))
 

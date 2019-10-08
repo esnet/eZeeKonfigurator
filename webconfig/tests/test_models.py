@@ -43,7 +43,6 @@ class ZeekAtomicValTestCase(ZeekValTestCase):
                 with self.assertRaises(ValidationError):
                     m = models.ZeekVal().create(self.type_name, i)
                     m.save()
-                    print(m)
 
 
 class ZeekContainerValTestCase(ZeekValTestCase):
@@ -71,7 +70,6 @@ class ZeekContainerValTestCase(ZeekValTestCase):
                 try:
                     m = self.model.create(type_name, i)
                     m.save()
-                    print(m)
                 except (ValidationError, AssertionError, NotImplementedError) as e:
                     with self.assertRaises(ValidationError):
                         raise ValidationError(e)
@@ -329,10 +327,10 @@ class ZeekSubnetTestCase(ZeekAtomicValTestCase):
         ("255.255.255.255/32", "255.255.255.255/32"),
         ("12.34.123.0/27", "12.34.123.0/27"),
 
-        ("::/128", "[::]/128"),
-        ("1200:0000:AB00:1234:0000:2552:7777:1313/64", "[1200:0:ab00:1234::]/64"),
-        ("21DA:D3:0:2F3B:2AA:FF:FE28:9C5A/88", "[21da:d3:0:2f3b:2aa::]/88"),
-        ("fFfF::/12", "[fff0::]/12"),
+        ("::/128", "::/128"),
+        ("1200:0000:AB00:1234:0000:2552:7777:1313/64", "1200:0:ab00:1234::/64"),
+        ("21DA:D3:0:2F3B:2AA:FF:FE28:9C5A/88", "21da:d3:0:2f3b:2aa::/88"),
+        ("fFfF::/12", "fff0::/12"),
     ]
 
     invalid_input = ZeekAddrTestCase.invalid_input + \
@@ -620,12 +618,26 @@ class ZeekRecordTestCase(TestCase):
     def test_serialization(self):
         m = models.ZeekVal.create('record { arg:int; addl:int; }', [1])
         self.assertEqual(m.json(), [1, None])
-        print(from_json(m.json(), 'record { arg:int; addl:int; }'))
 
 
 class CompositeTestCase(TestCase):
     def test_set_easy(self):
-        val = [1, 2]
+        val = [10, 20, 30, 40, 50, 60, 70]
+        val_type = 'count'
+
+        m = models.ZeekVal.create("set[%s]" % val_type, val)
+        self.assertEqual(m.type_name, 'set[count]')
+        self.assertEqual(m.index_types, "['%s']" % val_type)
+        self.assertIsNone(m.yield_type)
+        self.assertEqual(len(m.items.all()), len(val))
+
+        self.assertEqual(str(m), "{10, 20, 30, 40, 50, 60, 70}")
+
+        for v in val:
+            self.assertEqual(len(models.ZeekVal.filter(val_type, v)), 1)
+
+    def test_set_easy_jump(self):
+        val = [1, 2, 3, 4, 5, 6, 7, 10, 15, 90, 100, 150, 800, 18201, 1729071]
         val_type = 'count'
 
         m = models.ZeekVal.create("set[%s]" % val_type, val)
@@ -637,7 +649,7 @@ class CompositeTestCase(TestCase):
         for v in val:
             self.assertEqual(len(models.ZeekVal.filter(val_type, v)), 1)
 
-        self.assertEqual(str(m), "{1, 2}")
+        self.assertEqual(str(m), "{1, 2, 3, 4, 5, 6, 7, 10, 15, 90, ...and 5 more elements...}")
 
 
     def test_set_update(self):
@@ -655,7 +667,6 @@ class CompositeTestCase(TestCase):
         m.v = "1, 2, 3, 5, 5, 5"
         m.save()
         self.assertEqual(str(m), "{1, 2, 3, 5}")
-
 
 
     def test_set_medium(self):

@@ -77,7 +77,6 @@ def get_auth(status):
     return s.get(status, {})
 
 
-
 def get_sensor_count(request, sensor_type):
     result = models.Sensor.objects.filter(**get_auth(sensor_type)).count()
     if result:
@@ -106,8 +105,12 @@ def list_brokerd(request):
                                                  "auth_brokers": models.BrokerDaemon.objects.filter(authorized=True)})
 
 
-def list_options(request):
-    return render(request, 'list_options.html', {"values": models.Setting.objects.filter(option__sensor__authorized=True).order_by(Lower('option__namespace'), Lower('option__name'))})
+def list_options(request, namespace=None):
+    settings = models.Setting.objects.filter(option__sensor__authorized=True)
+    if namespace:
+        settings = settings.filter(option__namespace=namespace)
+    settings = settings.order_by(Lower('option__namespace'), Lower('option__name'))
+    return render(request, 'list_options.html', {"values": settings})
 
 
 def update_val(form, instance):
@@ -177,7 +180,13 @@ def get_container_items_record(obj, request, handle_post=True):
                     {'obj': item, 'form': forms.get_form_for_model(item.val, data)})
         except ValueError:
             # Composite type
-            items.append({'id': str(item.id), 'readonly': str(item.v)})
+            if isinstance(item, models.ZeekRecord) or item is models.ZeekRecord:
+                readonly = str(item)
+            elif isinstance(item, models.ZeekRecordField) or item is models.ZeekRecordField:
+                readonly = str(item)
+            else:
+                readonly = str(item.v)
+            items.append({'id': str(item.id), 'readonly': readonly})
 
     return items
 
@@ -195,12 +204,11 @@ def get_empty(request, obj, handle_post=True):
     if request.POST and handle_post:
         data = request.POST
 
-    print(data)
-
     keys = []
     idx_types = utils.get_index_types(obj.index_types)
     for i in range(len(idx_types)):
-        keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
+        if idx_types[i]:
+            keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
 
     f = []
     record_fields = []
@@ -225,7 +233,7 @@ def get_empty(request, obj, handle_post=True):
                 for idx in utils.get_index_types(obj.yield_type):
                     f.append(forms.get_empty_form(models.get_model_for_type(idx), data))
 
-    all_valid = keys or f
+    all_valid = data and (keys or f)
     for k in keys:
         if not k['form'].is_valid():
             all_valid = False
@@ -235,13 +243,16 @@ def get_empty(request, obj, handle_post=True):
             all_valid = False
 
     if all_valid and not record_fields:
+        ctr_item = None
         for idx_form in f:
             if idx_form.is_valid():
                 item_val = idx_form.save()
                 ctr_item = models.ZeekContainerItem(parent=obj, v=item_val, position=len(obj.items.all()))
         if not f:
             ctr_item = models.ZeekContainerItem(parent=obj, position=len(obj.items.all()))
-        ctr_item.save()
+
+        if ctr_item:
+            ctr_item.save()
 
         for i in range(len(keys)):
             key_val = keys[i]['form'].save()
@@ -278,7 +289,9 @@ def get_empty(request, obj, handle_post=True):
 
 
 def append_container(request, data, obj):
-    data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+    if obj.ctr_type != 'v':
+        data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+
     data['yield_type'] = obj.yield_type
 
     data['errors'] = []
@@ -300,7 +313,8 @@ def append_container(request, data, obj):
 def edit_container(request, data, s):
     obj = s.value
 
-    data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+    if obj.ctr_type != 'v':
+        data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
     data['yield_type'] = obj.yield_type
 
     data['errors'] = []
@@ -315,8 +329,11 @@ def edit_container(request, data, s):
                 valid, msg = update_val(f, key.v)
 
             if item.v:
-                f = forms.get_form_for_model(item.v, request.POST)
-                valid, msg = update_val(f, item.v)
+                try:
+                    f = forms.get_form_for_model(item.v, request.POST)
+                    valid, msg = update_val(f, item.v)
+                except ValueError:
+                    pass
 
         new = str(obj)
         if old != new:
@@ -361,16 +378,21 @@ def edit_option(request, id):
     if isinstance(s.value, models.ZeekContainer):
         return edit_container(request, data, s)
     else:
-        form = forms.get_form_for_model(s.value, request.POST)
+        data['form'] = forms.get_form_for_model(s.value, request.POST)
         if request.POST:
             old = str(s)
-            form.save()
+            if not request.POST.get('change_message'):
+                print("NOPE")
+            if data['form'].is_valid():
+                data['form'].save()
             new = str(s)
             name = s.option.get_name()
-            change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': models.get_name_of_model(s.value), 'uuid': s.option.sensor.uuid}
-            send_event('test', 'message', change_event)
-            data['success'] = ["Changes saved: %s -> %s" % (old, new)]
-        data['form'] = forms.get_form_for_model(s.value)
+            if old != new:
+                change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': models.get_name_of_model(s.value), 'uuid': s.option.sensor.uuid}
+                send_event('test', 'message', change_event)
+                data['success'] = ["Changes saved: %s -> %s" % (old, new)]
+        else:
+            data['form'] = forms.get_form_for_model(s.value)
         return render(request, 'edit_option_atomic.html', data)
 
 
@@ -398,13 +420,6 @@ def edit_value(request, val_type, id):
         data['val'] = get_object_or_404(models.ZeekPattern, pk=id)
     elif val_type == "record":
         data['val'] = get_object_or_404(models.ZeekRecord, pk=id)
-
-    if data['val'].parent_container_item:
-        data['setting'] = data['val'].parent_container_item
-    elif data['val'].parent_pattern:
-        data['setting'] = data['val'].parent_pattern
-    elif data['val'].parent_record_field:
-        data['setting'] = data['val'].parent_record_field
 
     data['child'] = {'datatype': data['val'].type_name }
     data['items'] = get_container_items(data['val'], request)

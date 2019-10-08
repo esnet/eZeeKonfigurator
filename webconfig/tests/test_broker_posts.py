@@ -61,7 +61,6 @@ class TestProblematic(TestImport):
         self.assertEqual(len(models.ZeekContainer.objects.all()), 1)
         ctr = models.ZeekContainer.objects.all()[0]
         self.assertEqual(len(ctr.items.all()), 1)
-        print(ctr.items.all()[0])
         response = self.c.get('/sensors/edit_option/1')
         self.assertEqual(response.status_code, 200)
 

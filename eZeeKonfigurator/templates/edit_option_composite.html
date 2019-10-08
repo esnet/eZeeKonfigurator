@@ -33,7 +33,7 @@
                         <td><a href="{{ item.edit_link }}">{{ item.readonly }}</a></td>
                     {% endif %}
                     <td>
-                        <input type="checkbox" name="delete_{{ item.obj.id }}">
+                        <input type="checkbox" name="delete_{{ item.id }}">
                     </td>
                 </tr>
             {% endfor %}
@@ -58,6 +58,7 @@
                 {% for i in idx_types %}
                     <th scope="col">Key ({{ i }})</th>
                 {% endfor %}
+
                 {% for r in empty.record_fields %}
                 <th scope="col">{{ r.name }} ({{ r.type }})</th>
                 {% endfor %}
@@ -85,7 +86,6 @@
         <button type="submit" class="btn btn-success">Save</button>
     </form>
 {% endif %}
-{{ empty|pprint }}
 {% endblock %}
 {% block type_doc %}
     {% if type|length_is:"1" %}
