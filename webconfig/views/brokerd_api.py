@@ -1,6 +1,7 @@
 import json
 from django.conf import settings
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
@@ -163,5 +164,39 @@ def brokerd_info(request, ver, brokerd_uuid):
         m.save()
     except:
         return error('brokerd_model_save', 500)
+
+    return JsonResponse({'success': True})
+
+
+@csrf_exempt
+@require_POST
+@check_version
+@authorized_brokerd
+def sensor_heartbeat(request, ver, brokerd_uuid):
+    """Update last seen time on a Zeek sensor"""
+    try:
+        data = json.loads(request.body)
+    except:
+        return error('json_parsing_error')
+
+    s = get_object_or_404(models.Sensor(uuid=data['sensor_uuid']))
+    s.save()
+
+    return JsonResponse({'success': True})
+
+
+@csrf_exempt
+@require_POST
+@check_version
+@authorized_brokerd
+def sensor_last_gasp(request, ver, brokerd_uuid):
+    """Update last seen time on a Zeek sensor"""
+    try:
+        data = json.loads(request.body)
+    except:
+        return error('json_parsing_error')
+
+    s = get_object_or_404(models.Sensor(uuid=data['sensor_uuid']))
+    s.save()
 
     return JsonResponse({'success': True})

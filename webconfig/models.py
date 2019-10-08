@@ -1015,6 +1015,10 @@ class ZeekPattern(ZeekContainer):
 
     def json(self):
         exact = anywhere = ""
+
+        if not self.items.all():
+            return [self.exact_format % self.v, self.anywhere_format % self.v]
+
         for i in self.items.all().order_by('position'):
             if exact:
                 exact = self.add_exact_format % (exact, i.v)

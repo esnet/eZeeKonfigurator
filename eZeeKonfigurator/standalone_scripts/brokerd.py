@@ -116,6 +116,12 @@ async def broker_loop():
             if opt_list:
                 send_to_server("sensor_option", {'sensor_uuid': uuid, 'options': opt_list})
 
+        elif ev.name() == "eZeeKonfigurator::heartbeat":
+            send_to_server("sensor_hb", {'sensor_uuid': uuid})
+
+        elif ev.name() == "eZeeKonfigurator::last_gasp":
+            send_to_server("sensor_last_gasp", {'sensor_uuid': uuid, 'event': ev.args()[0]})
+
         else:
             log.info("Received unhandled event: %s", ev.name())
 
