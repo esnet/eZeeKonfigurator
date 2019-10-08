@@ -42,13 +42,17 @@ eZeeKonfigurator: Zeek Config Manager
     <div class="row h-100">
     {% for s in auth_sensors %}
         <div class="card mb-3" style="max-width: 18rem;">
+        {% if s.last_seen %}
   <div class="card-header text-white bg-success">Connected ({{ s.zeek_version }})</div>
   <div class="card-body">
     <h5 class="card-title">{{ s.hostname }}</h5>
     <h6 class="card-subtitle mb-2 text-muted">Added: {{ s.first_seen }}</h6>
-    <h6 class="card-subtitle mb-2 text-muted">Seen: {{ s.last_seen }}</h6>
+    <h6 class="card-subtitle mb-2 text-muted">Seen: {{ s.last_seen | naturaltime }}</h6>
     <a href="{% url "list_options" %}#{{ s.uuid }}" class="card-link">Konfigure</a>
-  </div>
+          <form action="{% url "block_sensor" s.pk %}" method="POST">{% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger"><i class="fas fa-minus-circle"></i></button>
+                </form>
+        </div>
 </div>
     <div class="row h-100">
     {% for s in unauth_sensors %}
