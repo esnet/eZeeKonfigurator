@@ -938,6 +938,9 @@ class ZeekPattern(ZeekContainer):
     exact_format = "^?(%s)$?"
     anywhere_format = "^?(.|\\n)*(%s)"
 
+    add_exact_format = "(%s)|(^?(%s)$?)"
+    add_anywhere_format = "(%s)|(^?(.|\\n)*(%s))"
+
     def parse_native_type(self, type_name, val):
         return {'yield_type': 'pattern', 'ctr_type': 'p', 'type_name': 'pattern'}
 
@@ -955,6 +958,7 @@ class ZeekPattern(ZeekContainer):
         return self.parse_native_type(type_name, val)
 
     def __str__(self, limit=10, offset=0):
+        self.json()
         if self.items.all()[offset:offset+limit]:
             count = self.items.all().count()
             result = " | ".join(str(p.v) for p in self.items.all()[offset:offset+limit])
@@ -1008,6 +1012,21 @@ class ZeekPattern(ZeekContainer):
 
         parts.insert(0, val)
         return parts
+
+    def json(self):
+        exact = anywhere = ""
+        for i in self.items.all().order_by('position'):
+            if exact:
+                exact = self.add_exact_format % (exact, i.v)
+            else:
+                exact = self.exact_format % i.v
+
+            if anywhere:
+                anywhere = self.add_anywhere_format % (anywhere, i.v)
+            else:
+                anywhere = self.anywhere_format % i.v
+        
+        return [exact, anywhere]
 
 
 atomic_type_mapping = {
