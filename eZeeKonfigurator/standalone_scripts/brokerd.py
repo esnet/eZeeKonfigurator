@@ -73,7 +73,7 @@ def send_to_server(path, data):
     try:
         r = requests.post(url, json=data)
     except:
-        if debug:
+        if debug and data.get('options'):
             for o in data['options']:
                 dump_to_file(o['name'], o['val'])
         return

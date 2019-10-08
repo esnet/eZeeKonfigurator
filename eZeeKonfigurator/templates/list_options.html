@@ -18,10 +18,10 @@ eZeeKonfigurator: Zeek Config Manager
   <tbody>
     {% for i in values %}
     <tr>
-        <th scope="row"><a href="{% url 'edit_option' id=i.pk%}">{% if i.option.namespace %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }}</a></th>
-        <td>{{ i.value.web_str|linebreaksbr }}</td>
-      <td>{{ i.option.datatype }}</td>
-      <td>{{ i.option.docstring }}</td>
+        <th scope="row">{% ifchanged i.option.name  %}<a href="{% url 'edit_option' id=i.pk%}">{% if i.option.namespace %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }}</a>{% endifchanged %}</th>
+        <td>{% ifchanged i.value %}{{ i.value.web_str|linebreaksbr }}{% endifchanged %}</td>
+      <td>{% ifchanged i.option.datatype %}{{ i.option.datatype }}{% endifchanged %}</td>
+      <td>{% ifchanged i.option.docstring %}{{ i.option.docstring }}{% endifchanged %}</td>
       <td>{{ i.option.sensor.hostname }}</td>
     </tr>
     {% endfor %}

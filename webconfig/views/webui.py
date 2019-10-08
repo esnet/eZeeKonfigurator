@@ -477,6 +477,6 @@ def block_sensor(request, sensor_id):
 
 def reset(request):
     models.Sensor.objects.all().delete()
-    models.BrokerDaemon.objects.all().delete()
+    #models.BrokerDaemon.objects.all().delete()
     models.Option.objects.all().delete()
     return JsonResponse("OK")
