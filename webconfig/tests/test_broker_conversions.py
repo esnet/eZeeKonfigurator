@@ -329,5 +329,6 @@ class TestRecordSerialization(TestCase):
                          [None, ["neighbor_nets"], None, ["Action::PAGE"]]]))
         type = "vector of record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }"
 
-        m = models.ZeekVal.create("set[subnet]", ["0.0.0.0/0"])
-        self.assertEqual(from_json(val, type), "")
+        print(broker.Data.to_py(from_json(val, type)))
+
+        self.assertTrue(str(broker.Data.to_py(from_json(val, type))).startswith("""(({IPv4Network('0.0.0.0/0')}, None, None, {Action::IGNORE}), ({IPv4Network('0.0.0.0/0')}, None, None, {Action::PAGE})"""))

@@ -71,6 +71,11 @@ class TestProblematic(TestImport):
         self.assertTrue(response.json()['success'])
         self.assertEqual(response.status_code, 200)
 
+    def test_dce_rpc(self):
+        val = {'winreg': ["BaseRegGetVersion", "BaseRegCloseKey"]}
+        m = models.ZeekVal.create("table[string] of set[string]", val)
+        print(m.items.all())
+
 
 class TestFromServer(TestCase):
     def test_set_enum_of_interval(self):

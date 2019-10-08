@@ -34,7 +34,7 @@ def get_model_for_type(type_name):
     for c in composite:
         if type_name.startswith(c):
             return ZeekContainer
-
+    print(type_name)
     raise ValueError("Unknown type '%s'" % type_name)
 
 
@@ -739,10 +739,10 @@ class ZeekContainer(ZeekVal):
             return
         elif self.ctr_type == 's':
             item = ZeekContainerItem(parent=self)
+            item.save()
         elif self.ctr_type == 't':
             item = ZeekContainerItem(parent=self, v=ZeekVal.create(self.yield_type, key_val))
-
-        item.save()
+            item.save()
 
         # Now we create all the keys
 
@@ -750,6 +750,8 @@ class ZeekContainer(ZeekVal):
             idx_vals = list([idx_vals])
 
         for c, t in zip(idx_vals, index_types):
+            if not t:
+                continue
             key_value = ZeekVal.create(t, c)
 
             key = ZeekContainerKey(parent=item, index_offset=index_offset, v=key_value)

@@ -129,6 +129,25 @@ def update_val(form, instance):
     return True, result
 
 
+def get_container_items_pattern(obj, request, handle_post=True):
+    items = []
+
+    # Empty request.POST causes this to not validate
+    data = None
+    if request.POST and handle_post:
+        data = request.POST
+
+    for item in obj.items.all().order_by('position'):
+        # Each item is an element in our container.
+        keys = [{'obj': k, 'form': forms.get_form_for_model(k.v, data)} for k in item.keys.all()]
+        if item.v:
+            items.append({'obj': item, 'form': forms.get_form_for_model(item.v, data), 'keys': keys, 'id': str(item.id)})
+        else:
+            items.append({'keys': keys, 'id': str(item.id)})
+
+    return items
+
+
 def get_container_items_table(obj, request, handle_post=True):
     items = []
 
@@ -149,10 +168,6 @@ def get_container_items_table(obj, request, handle_post=True):
 
                 if isinstance(item.v, models.ZeekPattern):
                     t = "pattern"
-                elif isinstance(item.v, models.ZeekContainer):
-                    t = "table"
-                elif isinstance(item.v, models.ZeekRecord):
-                    t = "record"
 
                 result = {'keys': keys, 'id': str(item.id), 'readonly': str(item)}
                 if t:
@@ -192,6 +207,9 @@ def get_container_items_record(obj, request, handle_post=True):
 
 
 def get_container_items(obj, request, handle_post=True):
+    if isinstance(obj, models.ZeekPattern):
+        return get_container_items_pattern(obj, request, handle_post)
+
     if isinstance(obj, models.ZeekContainer):
         return get_container_items_table(obj, request, handle_post)
 
