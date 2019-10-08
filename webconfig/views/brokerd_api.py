@@ -179,7 +179,7 @@ def sensor_heartbeat(request, ver, brokerd_uuid):
     except:
         return error('json_parsing_error')
 
-    s = get_object_or_404(models.Sensor(uuid=data['sensor_uuid']))
+    s = get_object_or_404(models.Sensor, uuid=data['sensor_uuid'])
     s.save()
 
     return JsonResponse({'success': True})
@@ -196,7 +196,7 @@ def sensor_last_gasp(request, ver, brokerd_uuid):
     except:
         return error('json_parsing_error')
 
-    s = get_object_or_404(models.Sensor(uuid=data['sensor_uuid']))
+    s = get_object_or_404(models.Sensor, uuid=data['sensor_uuid'])
     s.save()
 
     return JsonResponse({'success': True})
