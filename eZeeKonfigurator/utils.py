@@ -168,7 +168,10 @@ def from_json(val, type_name):
         data = []
         for i in range(len(types)):
             field_type = types[i]['field_type']
-            data.append(from_json(val[i], field_type))
+            if len(val) > i:
+                data.append(from_json(val[i], field_type))
+            else:
+                data.append(from_json(None, field_type))
         return broker.Data(data)
 
     else:

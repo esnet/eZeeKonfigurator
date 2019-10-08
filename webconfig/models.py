@@ -133,10 +133,6 @@ class ZeekVal(models.Model):
     # Which setting(s) do we belong to?
     settings = GenericRelation(Setting)
 
-    #parent_container_item = GenericRelation('ZeekContainerItem', content_type_field="parent", object_id_field="parent_id")
-    #parent_record_field = GenericRelation('ZeekRecordField', content_type_field="parent", object_id_field="parent_id")
-    #parent_pattern = GenericRelation('ZeekPattern', content_type_field="parent", object_id_field="parent_id")
-
     comment = models.CharField("Value comment", help_text="What is this significance of the chosen value?", max_length=1024, null=True, blank=True)
 
     @classmethod
@@ -145,7 +141,9 @@ class ZeekVal(models.Model):
         kwargs = model().parse(type_name, val)
         m = model(**kwargs)
         m.full_clean()
+        post_save.disconnect(update_container_post, sender=ZeekContainer)
         m.save()
+        post_save.connect(update_container_post, sender=ZeekContainer)
         m.create_children(val)
         return m
 
@@ -235,8 +233,6 @@ class ZeekInt(ZeekVal):
 
 
 def validate_count(value):
-        if value is None:
-            return
         try:
             v = int(value)
             if v < 0:
@@ -274,6 +270,8 @@ class ZeekCount(ZeekVal):
         return {'v_msb': v_msb, 'v_lsb': v_lsb, 'v': v}
 
     def parse(self, type_name, val):
+        if not val:
+            val = 0
         if not isinstance(val, int):
             try:
                 val = int(val)
@@ -525,6 +523,8 @@ class ZeekSubnet(ZeekVal):
     def parse(self, type_name, val):
         if not (isinstance(val, ipaddress.IPv4Network) or isinstance(val, ipaddress.IPv6Network)):
             try:
+                if ( val.startswith("'") and val.endswith("'") ) or ( val.startswith('"') and val.endswith('"') ):
+                    val = val[1:-1]
                 val = ipaddress.ip_network(val, strict=False)
             except ValueError:
                 raise ValidationError("Could not parse '%s' as subnet" % val)
@@ -591,6 +591,8 @@ class ZeekRecord(ZeekVal):
 
     def create_children(self, val):
         types = get_record_types(self.field_types)
+        if not val or not len(val):
+            return
         for i in range(len(val)):
             f = types[i]
             field = ZeekRecordField.objects.create(name=f['field_name'], val_type=f['field_type'], index_pos=i, parent=self)
@@ -670,7 +672,7 @@ class ZeekContainer(ZeekVal):
     vector of Z = table[count] of Z: Python list [a, b, c]
     """
 
-    ctr_type = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table")])
+    ctr_type = models.CharField(max_length=1, choices=[('s', "set"), ('v', "vector"), ('t', "table"), ('p', "pattern")])
 
     v = models.CharField("Current value", max_length=1024, null=True, blank=True)
 
@@ -684,9 +686,10 @@ class ZeekContainer(ZeekVal):
         return {'ctr_type': type_name[0].lower(),
                 'type_name': type_name,
                 'index_types': str(get_index_types(type_name)),
-                'yield_type': get_yield_type(type_name)}
+                'yield_type': get_yield_type(type_name),
+                'v': str(val)[:1024]}
 
-    def parse_native_type(self, vals):
+    def create_children(self, vals):
         # Depending on the datatype, we expect:
         #
         #  set: a list. If it's a multi-key set, a list of lists.
@@ -721,6 +724,9 @@ class ZeekContainer(ZeekVal):
 
         else:
             raise NotImplementedError
+
+        self.v = ""
+        self.save()
 
     def create_child(self, idx_vals, key_val=None):
         index_types = get_index_types(self.index_types)
@@ -822,6 +828,7 @@ def parse_string_composite(string):
 def update_container_post(sender, instance, **kwargs):
     if not instance.v:
         instance.v = ""
+
     idx_types = get_index_types(instance.index_types)
     str_val = instance.v.strip('[').rstrip(']')
 
@@ -930,7 +937,7 @@ class ZeekPattern(ZeekContainer):
     anywhere_format = "^?(.|\\n)*(%s)"
 
     def parse_native_type(self, type_name, val):
-        return {'yield_type': 'pattern', 'type_name': 'p'}
+        return {'yield_type': 'pattern', 'ctr_type': 'p', 'type_name': 'pattern'}
 
     def create_children(self, val):
         exact, anywhere = val

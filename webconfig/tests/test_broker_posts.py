@@ -58,8 +58,9 @@ class TestProblematic(TestImport):
                                {'sensor_uuid': s_uuid, 'options': [val]}, content_type='application/json')
         self.assertTrue(response.json()['success'])
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(models.ZeekContainer.objects.all()), 1)
         ctr = models.ZeekContainer.objects.all()[0]
+        print(ctr)
+        self.assertEqual(len(models.ZeekContainer.objects.all()), 1)
         self.assertEqual(len(ctr.items.all()), 1)
         response = self.c.get('/sensors/edit_option/1')
         self.assertEqual(response.status_code, 200)

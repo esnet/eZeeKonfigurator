@@ -289,7 +289,7 @@ class TestDictSerialization(TestUtilsJSON):
 
         l = {('one', "22/tcp"): 1, ('two', "80/tcp"): 2}
         m = models.ZeekContainer.create("table[string, port] of count", l)
-        self.assertEqual({'["one", {"port": 22, "proto": "tcp"}]': 1, '["two", {"port": 80, "proto": "tcp"}]': 2}, m.json())
+        self.assertEqual({'["one", "22/tcp"]': 1, '["two", "80/tcp"]': 2}, m.json())
 
 
     def test_from_json(self):
@@ -330,4 +330,4 @@ class TestRecordSerialization(TestCase):
         type = "vector of record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }"
 
         m = models.ZeekVal.create("set[subnet]", ["0.0.0.0/0"])
-        self.assertEqual(from_json(val,type), "")
+        self.assertEqual(from_json(val, type), "")
