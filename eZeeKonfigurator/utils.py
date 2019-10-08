@@ -174,6 +174,9 @@ def from_json(val, type_name):
                 data.append(from_json(None, field_type))
         return broker.Data(data)
 
+    elif type_name == "pattern":
+        return broker.Data(val)
+
     else:
         raise NotImplementedError("Converting type", type_name)
 
