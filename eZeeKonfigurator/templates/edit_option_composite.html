@@ -40,9 +40,7 @@
             </tbody>
         </table>
         <div class="form-row">
-            <label for="change_message">Change message</label>
-            <input type="text" class="form-control" id="change_message" placeholder="Increased timeout due to long-lived connections">
-            <small id="changeHelp" class="form-text text-muted">A message describing why the change was made.</small>
+                  {{ change_form|crispy }}
         </div>
         <button type="submit" class="btn btn-success">Save</button>
     </form>
@@ -79,9 +77,9 @@
             </tbody>
         </table>
         <div class="form-row">
-            <label for="change_message">Change message</label>
-            <input type="text" class="form-control" id="change_message" placeholder="Increased timeout due to long-lived connections">
-            <small id="changeHelp" class="form-text text-muted">A message describing why the change was made.</small>
+        <div class="form-row">
+                  {{ change_form_append|crispy }}
+        </div>
         </div>
         <button type="submit" class="btn btn-success">Save</button>
     </form>
