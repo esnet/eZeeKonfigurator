@@ -418,6 +418,8 @@ def edit_option(request, id):
             changed = False
             new = ""
             if data['form'].is_valid() and data['change_form'].is_valid():
+                data['form'].save()
+                changed = True
                 new = str(s.value)
                 change_form = data['change_form'].save(commit=False)
                 change_form.time = datetime.datetime.now()
