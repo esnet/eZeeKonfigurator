@@ -110,8 +110,10 @@ class Option(models.Model):
 
 class Change(models.Model):
     options = models.ManyToManyField(Option)
-    msg = models.CharField("Summary of the change. e.g. Increased timeout due to long-lived connections", max_length=1024)
+    msg = models.CharField("Summary of the change", help_text="e.g. Increased timeout due to long-lived connections", max_length=1024)
     user = models.CharField(max_length=64)
+    old_val = models.CharField(max_length=1024, null=True, blank=True)
+    new_val = models.CharField(max_length=1024, null=True, blank=True)
     time = models.DateTimeField(auto_created=True)
 
     def __str__(self):

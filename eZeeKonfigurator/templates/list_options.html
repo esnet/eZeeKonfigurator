@@ -8,21 +8,27 @@ eZeeKonfigurator: Zeek Config Manager
     <table class="table table-hover">
   <thead>
     <tr>
+        <th></th>
       <th scope="col">Option</th>
       <th scope="col">Current value</th>
-      <th scope="col">Datatype</th>
-      <th scope="col">Documentation</th>
-      <th scope="col">Sensor</th>
+        <th scope="col">Sensor</th>
+        <th scope="col">Documentation</th>
     </tr>
   </thead>
   <tbody>
     {% for i in values %}
     <tr>
-        <th scope="row">{% ifchanged i.option.name  %}<a href="{% url 'edit_option' id=i.pk%}">{% if i.option.namespace %}{{ i.option.namespace }}::{% endif %}{{ i.option.name }}</a>{% endifchanged %}</th>
+    <td>
+    <button type="button" class="btn btn-dark btn-sm" aria-label="Left Align">
+ <span class="fa fa-edit fa-sm" aria-hidden="true"></span>
+ </button>
+    </td>
+        <th scope="row">{% ifchanged i.option.name  %}{% if i.option.namespace %}<a href="{% url 'list_options' namespace=i.option.namespace %}">{{ i.option.namespace }}</a>::{% endif %}
+            {{ i.option.name }}&nbsp;({{ i.option.datatype }}){% endifchanged %}
+        </th>
         <td>{% ifchanged i.value.web_str %}{{ i.value.web_str|linebreaksbr }}{% endifchanged %}</td>
-      <td>{% ifchanged i.option.datatype %}{{ i.option.datatype }}{% endifchanged %}</td>
-      <td>{% ifchanged i.option.docstring %}{{ i.option.docstring }}{% endifchanged %}</td>
-      <td>{{ i.option.sensor.hostname }}</td>
+        <td><a href="{% url 'list_options' id=i.option.sensor.id %}">{{ i.option.sensor.hostname }}</a></td>
+      <td>{% ifchanged i.option.docstring %}{{ i.option.docstring|truncatechars:128 }}{% endifchanged %}</td>
     </tr>
     {% endfor %}
   </tbody>

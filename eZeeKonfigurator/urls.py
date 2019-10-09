@@ -23,6 +23,7 @@ urlpatterns = [
     path('', webui.home, name='home'),
     path('sensors/auth', webui.list_sensors, name='list_sensors'),
     path('sensors/settings', webui.list_options, name='list_options'),
+    path('sensors/<int:id>/settings', webui.list_options, name='list_options'),
     path('sensors/settings/<slug:namespace>', webui.list_options, name='list_options'),
     path('sensors/edit_option/<int:id>', webui.edit_option, name='edit_option'),
     path('sensors/append_option/<int:id>', webui.append_option, name='append_option'),

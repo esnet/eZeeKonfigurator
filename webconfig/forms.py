@@ -59,3 +59,5 @@ def get_empty_form(model, post_data=None, prefix="", required=True, type_name=""
     factory = get_factory(model, modelform_factory, type_name=type_name)
     return factory(post_data, prefix=prefix, use_required_attribute=required)
 
+
+change_form = modelform_factory(models.Change, fields=("msg",))

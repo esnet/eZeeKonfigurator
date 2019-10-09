@@ -43,4 +43,29 @@ eZeeKonfigurator: Edit {% if setting.option.namespace %}{{ setting.option.namesp
 </div>
     {% block form %}
     {% endblock %}
+    {% if value_history %}
+    <hr>
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th scope="col">Time</th>
+      <th scope="col">Username</th>
+      <th scope="col">Description</th>
+        <th scope="col">Old Value</th>
+        <th scope="col">New Value</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for change in value_history %}
+    <tr>
+        <th scope="row"><abbr title="{{ change.time }}">{{ change.time|naturaltime }}</abbr></th>
+        <td>{{ change.user }}</td>
+      <td>{{ change.msg }}</td>
+    <td>{{ change.old_val }}</td>
+    <td>{{ change.new_val }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+    {% endif %}
 {% endblock %}

@@ -1,7 +1,4 @@
-import git
-import os
-import shutil
-import sys
+import datetime
 import uuid as uuidlib
 
 from django import db
@@ -105,10 +102,12 @@ def list_brokerd(request):
                                                  "auth_brokers": models.BrokerDaemon.objects.filter(authorized=True)})
 
 
-def list_options(request, namespace=None):
+def list_options(request, namespace=None, id=None):
     settings = models.Setting.objects.filter(option__sensor__authorized=True)
     if namespace:
         settings = settings.filter(option__namespace=namespace)
+    if id:
+        settings = settings.filter(option__sensor__id=id)
     settings = settings.order_by(Lower('option__namespace'), Lower('option__name'))
     return render(request, 'list_options.html', {"values": settings})
 
@@ -237,12 +236,6 @@ def get_empty(request, obj, handle_post=True):
         except ValueError:
             if obj.yield_type.startswith('record'):
                 for t in utils.get_record_types(obj.yield_type):
-                    #
-                    # idx_types = utils.get_index_types(t['field_type'])
-                    # if not idx_types:
-                    #     raise NotImplementedError("Don't know how to handle this record with no index types")
-                    # if len(idx_types) > 1:
-                    #     raise NotImplementedError("Don't know how to handle this record with multiple index types")
                     m = models.get_model_for_type(t['field_type'])
 
                     record_fields.append({'name': t['field_name'], 'type': t['field_type']})
@@ -385,6 +378,14 @@ def edit_container(request, data, s):
 
     return render(request, 'edit_option_composite.html', data)
 
+def truncate(value, max_length=1024):
+    if len(value) <= max_length:
+        return value
+
+    msg = "...<truncated>"
+
+    return value[:len(value) - len(msg) - 1] + msgs
+
 
 def edit_option(request, id):
     s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
@@ -392,23 +393,37 @@ def edit_option(request, id):
     args = {'id': id}
     data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
             "append_url": reverse('append_option', kwargs=args)}
+    data['value_history'] = models.Change.objects.all().order_by('time')
 
     if isinstance(s.value, models.ZeekContainer):
         return edit_container(request, data, s)
     else:
         data['form'] = forms.get_form_for_model(s.value, request.POST)
+        data['change_form'] = forms.change_form()
         if request.POST:
-            old = str(s)
-            if not request.POST.get('change_message'):
-                print("NOPE")
-            if data['form'].is_valid():
+            data['change_form'] = forms.change_form(request.POST)
+            old = str(s.value)
+            changed = False
+            new = ""
+            if data['form'].is_valid() and data['change_form'].is_valid():
                 data['form'].save()
-            new = str(s)
+                new = str(s.value)
+                change_form = data['change_form'].save(commit=False)
+                change_form.time = datetime.datetime.now()
+                if request.user.is_authenticated:
+                    username = request.user.username
+                else:
+                    username = "admin"
+                change_form.user = username
+                change_form.old_val = truncate(old)
+                change_form.new_val = truncate(new)
+                change_form.save()
+
             name = s.option.get_name()
-            if old != new:
+            if changed and old != new:
                 change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': models.get_name_of_model(s.value), 'uuid': s.option.sensor.uuid}
                 send_event('test', 'message', change_event)
-                data['success'] = ["Changes saved: %s -> %s" % (old, new)]
+                data['success'] = ["Changes saved: %s %s -> %s" % (name, old, new)]
         else:
             data['form'] = forms.get_form_for_model(s.value)
         return render(request, 'edit_option_atomic.html', data)
