@@ -26,6 +26,7 @@ eZeeKonfigurator: Edit {% if setting.option.namespace %}{{ setting.option.namesp
     <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{% url "list_options" %}" >Options</a></li>
+    <li class="breadcrumb-item"><a href="{% url "list_options" id=setting.option.sensor.id %}" >{{ setting.option.sensor.hostname }} ( {{ setting.option.sensor.zeek_version }} )</a></li>
     <li class="breadcrumb-item"><a href="{% url "list_options" namespace=setting.option.namespace %}">{% if setting.option.namespace %}{{ setting.option.namespace }}{% else %}GLOBAL{% endif %}</a></li>
     {% if not child %}
     <li class="breadcrumb-item active" aria-current="page">{{ setting.option.name }}: {{ setting.option.datatype }}</li>

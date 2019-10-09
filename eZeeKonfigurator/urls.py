@@ -21,6 +21,7 @@ import webconfig.views.brokerd_api as brokerd_api
 
 urlpatterns = [
     path('', webui.home, name='home'),
+    path('activity', webui.changes, name='changes'),
     path('sensors/auth', webui.list_sensors, name='list_sensors'),
     path('sensors/settings', webui.list_options, name='list_options'),
     path('sensors/<int:id>/settings', webui.list_options, name='list_options'),

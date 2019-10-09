@@ -4,6 +4,18 @@
 eZeeKonfigurator: Zeek Config Manager
 {% endblock %}
 {% block content %}
+        <nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item {% if not sensor and not namespace and not settings %}active{% endif %}"><a href="{% url "list_options" %}" >Options</a></li>
+    {% if sensor %}
+  <li class="breadcrumb-item {% if not namespace and not settings %}active{% endif %}"><a href="{% url "list_options" id=sensor.id %}">{{ sensor.hostname }}</a></li>
+  {% endif %}
+  {% if namespace %}
+  <li class="breadcrumb-item {% if not settings %}active{% endif %}"><a href="{% url "list_options" namespace=namespace %}">{{ namespace }}</a></li>
+  {% endif %}
+  </ol>
+</nav>
+
     <div>
     <table class="table table-hover">
   <thead>
@@ -16,12 +28,12 @@ eZeeKonfigurator: Zeek Config Manager
     </tr>
   </thead>
   <tbody>
-    {% for i in values %}
+    {% for i in settings %}
     <tr>
     <td>
-    <button type="button" class="btn btn-dark btn-sm" aria-label="Left Align">
+    <a role="button" class="btn btn-light btn-sm" href="{% url 'edit_option' id=i.id %}">
  <span class="fa fa-edit fa-sm" aria-hidden="true"></span>
- </button>
+ </a>
     </td>
         <th scope="row">{% ifchanged i.option.name  %}{% if i.option.namespace %}<a href="{% url 'list_options' namespace=i.option.namespace %}">{{ i.option.namespace }}</a>::{% endif %}
             {{ i.option.name }}&nbsp;({{ i.option.datatype }}){% endifchanged %}

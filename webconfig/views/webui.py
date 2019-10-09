@@ -83,11 +83,15 @@ def get_sensor_count(request, sensor_type):
 
 
 def get_brokerd_count(request, brokerd_type):
-    result = models.BrokerDaemon.objects.filter(port__isnull=False, **get_auth(brokerd_type)).count()
+    result = models.BrokerDaemon.objects.filter(port__isnulls=False, **get_auth(brokerd_type)).count()
     if result:
         return JsonResponse({'success': True, 'num': result})
     else:
         return JsonResponse({'success': False}, status=404)
+
+
+def changes(request):
+    return render(request, 'list_changes.html', {"changes": models.Change.objects.all().order_by('time')})
 
 
 def list_sensors(request):
@@ -103,13 +107,21 @@ def list_brokerd(request):
 
 
 def list_options(request, namespace=None, id=None):
-    settings = models.Setting.objects.filter(option__sensor__authorized=True)
+    data = {}
+    filters = {'option__sensor__authorized': True}
+
     if namespace:
-        settings = settings.filter(option__namespace=namespace)
+        filters['option__namespace'] = namespace
+        data['namespace'] = namespace
     if id:
-        settings = settings.filter(option__sensor__id=id)
-    settings = settings.order_by(Lower('option__namespace'), Lower('option__name'))
-    return render(request, 'list_options.html', {"values": settings})
+        filters['option__sensor__id'] = id
+        data['sensor'] = get_object_or_404(models.Sensor, pk=id)
+
+    data['settings'] = models.Setting.objects.filter(**filters).order_by(Lower('option__namespace'),
+                                                                         Lower('option__name'),
+                                                                         'option__sensor__hostname')
+
+    return render(request, 'list_options.html', data)
 
 
 def update_val(form, instance):
@@ -362,7 +374,6 @@ def edit_container(request, data, s):
                 except obj.DoesNotExist:
                     data['errors'].append("Could not find object '%s' to delete." % k)
 
-
     data['empty'], added = get_empty(request, obj, False)
 
     if added:
@@ -378,13 +389,14 @@ def edit_container(request, data, s):
 
     return render(request, 'edit_option_composite.html', data)
 
+
 def truncate(value, max_length=1024):
     if len(value) <= max_length:
         return value
 
     msg = "...<truncated>"
 
-    return value[:len(value) - len(msg) - 1] + msgs
+    return value[:len(value) - len(msg) - 1] + msg
 
 
 def edit_option(request, id):
@@ -392,8 +404,8 @@ def edit_option(request, id):
 
     args = {'id': id}
     data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
-            "append_url": reverse('append_option', kwargs=args)}
-    data['value_history'] = models.Change.objects.all().order_by('time')
+            "append_url": reverse('append_option', kwargs=args),
+            'value_history': models.Change.objects.filter(options=s.option).order_by('time')}
 
     if isinstance(s.value, models.ZeekContainer):
         return edit_container(request, data, s)
@@ -406,7 +418,6 @@ def edit_option(request, id):
             changed = False
             new = ""
             if data['form'].is_valid() and data['change_form'].is_valid():
-                data['form'].save()
                 new = str(s.value)
                 change_form = data['change_form'].save(commit=False)
                 change_form.time = datetime.datetime.now()
@@ -417,6 +428,8 @@ def edit_option(request, id):
                 change_form.user = username
                 change_form.old_val = truncate(old)
                 change_form.new_val = truncate(new)
+                change_form.save()
+                change_form.options.set([x.option for x in data['form'].instance.settings.all()])
                 change_form.save()
 
             name = s.option.get_name()
@@ -429,11 +442,11 @@ def edit_option(request, id):
         return render(request, 'edit_option_atomic.html', data)
 
 
-def append_option(request, id):
+def append_option(request, option_id):
     """Only used for containers."""
     s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
 
-    args = {'id': id}
+    args = {'id': option_id}
     data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
             "append_url": reverse('append_option', kwargs=args)}
 
@@ -460,17 +473,9 @@ def edit_value(request, val_type, id):
 
     return render(request, 'edit_option_composite_nested.html', data)
 
+
 def append_value(request, val_type, id):
     return
-
-
-def export_options(request, ver, sensor_uuid):
-    response = render(request, 'export_options.html', {
-        "values": models.Setting.objects.filter(option__sensor__authorized=True, option__sensor__uuid=sensor_uuid).order_by('option__namespace',
-                                                                                                                            'option__name')},
-                  content_type='text/plain')
-    response['Content-Disposition'] = 'attachment; filename="ezeekonfigurator.tsv"'
-    return response
 
 
 @require_POST
@@ -490,8 +495,8 @@ def block_sensor(request, sensor_id):
 
 # Below here is for development
 
+
 def reset(request):
     models.Sensor.objects.all().delete()
-    #models.BrokerDaemon.objects.all().delete()
     models.Option.objects.all().delete()
     return JsonResponse("OK")
