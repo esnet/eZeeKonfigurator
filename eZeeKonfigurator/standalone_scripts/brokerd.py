@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import aiohttp
 from aiohttp_sse_client import client as sse_client
 import asyncio
