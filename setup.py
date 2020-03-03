@@ -24,5 +24,5 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={'ezeekonfigurator_client': ['.git/*']},
     install_requires=requirements,
-    scripts=['manage.py', 'eZeeKonfigurator/standalone_scripts/*'],
+    scripts=['manage.py', 'eZeeKonfigurator/standalone_scripts/brokerd.py'],
 )
