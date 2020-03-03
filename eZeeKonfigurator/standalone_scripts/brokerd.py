@@ -11,8 +11,6 @@ import os
 import requests
 import sys
 
-from eZeeKonfigurator.utils import from_json, to_json
-
 # Import broker. Just do it?
 try:
     import broker
@@ -37,6 +35,9 @@ except ImportError:
     except ImportError:
             # We've done all we can
             raise ImportError(broker_error_message)
+
+from eZeeKonfigurator.utils import from_json, to_json
+
 
 debug = True
 
