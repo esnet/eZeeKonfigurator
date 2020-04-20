@@ -24,5 +24,5 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     install_requires=requirements,
-    scripts=['manage.py', 'eZeeKonfigurator/standalone_scripts/brokerd.py'],
+    scripts=['manage.py'],
 )
