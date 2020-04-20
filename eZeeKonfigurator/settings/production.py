@@ -24,5 +24,6 @@ DATABASES = {
 }
 
 STATIC_ROOT = 'mystaticroot'
+FORCE_SCRIPT_NAME = '/scriptname'
 
 STATIC_URL = '/webconfig/static/'
