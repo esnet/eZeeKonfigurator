@@ -32,15 +32,12 @@ urlpatterns = [
     path('sensors/edit_value/<slug:val_type>/<int:id>', webui.edit_value, name='edit_value'),
     path('sensors/append_value/<slug:val_type>/<int:id>', webui.append_value, name='append_value'),
 
-    path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/sensor_info/', brokerd_api.sensor_info, name='sensor_info'),
-    path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/sensor_option/', brokerd_api.sensor_option, name='sensor_option'),
-    path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/sensor_hb/', brokerd_api.sensor_heartbeat, name='sensor_heartbeat'),
-    path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/sensor_last_gasp/', brokerd_api.sensor_last_gasp, name='sensor_last_gasp'),
-
-    path('brokerd_api/<slug:brokerd_uuid>/v<int:ver>/brokerd_info/', brokerd_api.brokerd_info, name='brokerd_info'),
+    path('brokerd_api/v<int:ver>/sensor_info/', brokerd_api.sensor_info, name='sensor_info'),
+    path('brokerd_api/v<int:ver>/sensor_option/', brokerd_api.sensor_option, name='sensor_option'),
+    path('brokerd_api/v<int:ver>/sensor_hb/', brokerd_api.sensor_heartbeat, name='sensor_heartbeat'),
+    path('brokerd_api/v<int:ver>/sensor_last_gasp/', brokerd_api.sensor_last_gasp, name='sensor_last_gasp'),
 
     path('web_api/sensor/count/<slug:sensor_type>/', webui.get_sensor_count, name='api_sensor_count'),
-    path('web_api/brokerd/count/<slug:brokerd_type>/', webui.get_brokerd_count, name='api_brokerd_count'),
 
     path('web_api/sensor/authorize/<int:sensor_id>/', webui.authorize_sensor, name='authorize_sensor'),
     path('web_api/sensor/block/<int:sensor_id>/', webui.block_sensor, name='block_sensor'),

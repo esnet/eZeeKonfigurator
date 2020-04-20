@@ -3,7 +3,6 @@ from django.test import TestCase, Client
 from eZeeKonfigurator.utils import *
 from webconfig import models
 
-b_uuid = "0d030059-3ec7-42ee-a845-22e5381287ec"
 s_uuid = "0d030059-3ec7-42ee-a845-22e5381287ec"
 
 
@@ -11,7 +10,6 @@ class TestImport(TestCase):
     items = []
 
     def setUp(self):
-        models.BrokerDaemon(uuid=b_uuid, authorized=True).save()
         models.Sensor(hostname="localhost", uuid=s_uuid, zeek_version="3.0.0-rc2", authorized=True).save()
         self.c = Client()
 
@@ -19,7 +17,7 @@ class TestImport(TestCase):
         i = 1
         for s in self.items:
             with self.subTest(val=str(s)):
-                response = self.c.post('/brokerd_api/%s/v1/sensor_option/' % b_uuid,
+                response = self.c.post('/brokerd_apiv1/sensor_option/',
                                        {'sensor_uuid': s_uuid, 'options': [s]}, content_type='application/json')
                 self.assertTrue(response.json()['success'])
                 self.assertEqual(response.status_code, 200)
@@ -41,7 +39,7 @@ class TestProblematic(TestImport):
     def test_notice_config_empty(self):
         val = {'name': "ESnet::notice_cfg", "type": "vector of record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }",
                'doc': "ESnet notice policies", 'val': []}
-        response = self.c.post('/brokerd_api/%s/v1/sensor_option/' % b_uuid,
+        response = self.c.post('/brokerd_api/v1/sensor_option/',
                                {'sensor_uuid': s_uuid, 'options': [val]}, content_type='application/json')
         self.assertTrue(response.json()['success'])
         self.assertEqual(response.status_code, 200)
@@ -54,7 +52,7 @@ class TestProblematic(TestImport):
     def test_notice_config(self):
         val = {'name': "ESnet::notice_cfg", "type": "vector of record { src:set[subnet]; src_in:set[string]; note:set[enum]; action:set[enum]; }",
                'doc': "ESnet notice policies", 'val': [[[], [], [], []]]}
-        response = self.c.post('/brokerd_api/%s/v1/sensor_option/' % b_uuid,
+        response = self.c.post('/brokerd_api/v1/sensor_option/',
                                {'sensor_uuid': s_uuid, 'options': [val]}, content_type='application/json')
         self.assertTrue(response.json()['success'])
         self.assertEqual(response.status_code, 200)
@@ -67,7 +65,7 @@ class TestProblematic(TestImport):
 
     def test_record(self):
         val = {"sensor_uuid": s_uuid, "options": [{"name": "Exporter::addl_functions", "type": "table[string] of record { arg:int; addl:int; }", "doc": "", "val": {"SumStats::cluster_get_result": [1, -1], "SumStats::cluster_send_result": [1, -1], "conn_weird": [0, 2], "flow_weird": [0, 3], "net_weird": [0, 1]}}]}
-        response = self.c.post('/brokerd_api/%s/v1/sensor_option/' % b_uuid, val, content_type='application/json')
+        response = self.c.post('/brokerd_api/v1/sensor_option/', val, content_type='application/json')
         self.assertTrue(response.json()['success'])
         self.assertEqual(response.status_code, 200)
 

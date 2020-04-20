@@ -65,30 +65,6 @@ class Sensor(models.Model):
         return result
 
 
-class BrokerDaemon(models.Model):
-    """The broker daemon communicates with our API"""
-    ip = models.GenericIPAddressField("The IP address Zeek clients should connect to", null=True, blank=True)
-    port = models.PositiveIntegerField("The TCP port Zeek clients should connect to", null=True, blank=True)
-    uuid = models.UUIDField()
-
-    first_seen = models.DateTimeField(auto_now_add=True)
-    last_seen = models.DateTimeField(auto_now=True)
-
-    authorized = models.BooleanField(blank=True, null=True)
-
-    def __str__(self):
-        if not (self.ip or self.port):
-            result = "<bind address not set>"
-        else:
-            result = "%s:%d" % (self.ip, self.port)
-
-        if self.authorized:
-            result += " [Authorized]"
-        else:
-            result += " [Unauthorized]"
-        return result
-
-
 class Option(models.Model):
     namespace = models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=256)

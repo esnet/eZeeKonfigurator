@@ -1,5 +1,4 @@
 import json
-from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
@@ -14,30 +13,16 @@ def error(text, status=400):
     return JsonResponse({'success': False, 'errors': [text]}, status=status)
 
 
-def authorized_brokerd(view_func):
-    def wrapper(*args, **kw):
-        if not getattr(settings, "BROKERD_AUTH_ENABLED", False):
-            return view_func(*args, **kw)
-        try:
-            uuid = kw['brokerd_uuid']
-            models.BrokerDaemon.objects.get(uuid=uuid, authorized=True)
-        except:
-            return error('unauthorized_brokerd', 404)
-
-        return view_func(*args, **kw)
-    return wrapper
-
-
-def authorized_sensor(view_func):
-    def wrapper(*args, **kw):
-        try:
-            uuid = kw['sensor_uuid']
-            models.Sensor.objects.get(uuid=uuid, authorized=True)
-        except:
-            return error('unauthorized_sensor', 404)
-
-        return view_func(*args, **kw)
-    return wrapper
+# def authorized_sensor(view_func):
+#     def wrapper(*args, **kw):
+#         try:
+#             uuid = kw['sensor_uuid']
+#             models.Sensor.objects.get(uuid=uuid, authorized=True)
+#         except:
+#             return error('unauthorized_sensor', 404)
+#
+#         return view_func(*args, **kw)
+#     return wrapper
 
 
 def check_version(view_func):
@@ -56,8 +41,7 @@ def check_version(view_func):
 @csrf_exempt
 @require_POST
 @check_version
-@authorized_brokerd
-def sensor_info(request, ver, brokerd_uuid):
+def sensor_info(request, ver):
     """Update or create a Zeek sensor"""
     try:
         data = json.loads(request.body)
@@ -82,8 +66,7 @@ def sensor_info(request, ver, brokerd_uuid):
 @csrf_exempt
 @require_POST
 @check_version
-@authorized_brokerd
-def sensor_option(request, ver, brokerd_uuid):
+def sensor_option(request, ver):
     """Update or create a Zeek sensor option"""
     try:
         data = json.loads(request.body)
@@ -133,46 +116,10 @@ def sensor_option(request, ver, brokerd_uuid):
 
     return JsonResponse({'success': successes == len(options)})
 
-
 @csrf_exempt
 @require_POST
 @check_version
-@authorized_brokerd
-def brokerd_info(request, ver, brokerd_uuid):
-    """Update the ip:port broker is listening on"""
-    try:
-        data = json.loads(request.body)
-    except:
-        return error('json_parsing_error')
-
-    if getattr(settings, "BROKERD_AUTH_ENABLED", False):
-        m = models.BrokerDaemon.objects.get_or_create(uuid=brokerd_uuid, authorized=True)
-    else:
-        # This should exist from @authorized_brokerd
-        m = models.BrokerDaemon.objects.get(uuid=brokerd_uuid)
-
-    try:
-        ip = data["ip"]
-        if not ip:
-            ip = request.META.get('REMOTE_ADDR')
-        m.ip = ip
-        m.port = data["port"]
-    except KeyError:
-        return error('missing_fields')
-
-    try:
-        m.save()
-    except:
-        return error('brokerd_model_save', 500)
-
-    return JsonResponse({'success': True})
-
-
-@csrf_exempt
-@require_POST
-@check_version
-@authorized_brokerd
-def sensor_heartbeat(request, ver, brokerd_uuid):
+def sensor_heartbeat(request, ver):
     """Update last seen time on a Zeek sensor"""
     try:
         data = json.loads(request.body)
@@ -188,8 +135,7 @@ def sensor_heartbeat(request, ver, brokerd_uuid):
 @csrf_exempt
 @require_POST
 @check_version
-@authorized_brokerd
-def sensor_last_gasp(request, ver, brokerd_uuid):
+def sensor_last_gasp(request, ver):
     """Update last seen time on a Zeek sensor"""
     try:
         data = json.loads(request.body)

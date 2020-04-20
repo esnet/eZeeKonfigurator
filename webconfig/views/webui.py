@@ -38,11 +38,6 @@ def home(request):
     if not users:
         return _setup_create_user(request)
 
-    # If we have no brokerd, add one.
-    auth = not getattr(settings, "BROKERD_AUTH_ENABLED", False)
-    if not models.BrokerDaemon.objects.filter(authorized=auth, port__isnull=False):
-        return _setup_create_brokerd(request)
-
     # If we have no sensors, help the user to add one.
     sensors = models.Sensor.objects.all()
     if not sensors:
@@ -57,15 +52,6 @@ def _setup_create_user(request):
     User.objects.create_superuser('admin', 'admin@example.com', password)
 
     return render(request, 'setup_1.html', {'password': password})
-
-
-def _setup_create_brokerd(request):
-    uuid = str(uuidlib.uuid4())
-    data = {'server': request.build_absolute_uri('brokerd_api/') + uuid}
-    m = models.BrokerDaemon.objects.create(uuid=uuid, authorized=True)
-    m.save()
-
-    return render(request, 'setup_2.html', data)
 
 
 def get_auth(status):
@@ -84,14 +70,6 @@ def get_sensor_count(request, sensor_type):
         return JsonResponse({'success': False}, status=404)
 
 
-def get_brokerd_count(request, brokerd_type):
-    result = models.BrokerDaemon.objects.filter(port__isnull=False, **get_auth(brokerd_type)).count()
-    if result:
-        return JsonResponse({'success': True, 'num': result})
-    else:
-        return JsonResponse({'success': False}, status=404)
-
-
 def changes(request):
     return render(request, 'list_changes.html', {"changes": models.Change.objects.all().order_by('-time')})
 
@@ -100,12 +78,6 @@ def list_sensors(request):
     return render(request, 'list_sensors.html', {"pending_sensors": models.Sensor.objects.filter(authorized=None),
                                                  "unauth_sensors": models.Sensor.objects.filter(authorized=False),
                                                  "auth_sensors": models.Sensor.objects.filter(authorized=True)})
-
-
-def list_brokerd(request):
-    return render(request, 'list_brokerd.html', {"pending_brokers": models.BrokerDaemon.objects.filter(authorized=None),
-                                                 "unauth_brokers": models.BrokerDaemon.objects.filter(authorized=False),
-                                                 "auth_brokers": models.BrokerDaemon.objects.filter(authorized=True)})
 
 
 def list_options(request, namespace=None, id=None):
