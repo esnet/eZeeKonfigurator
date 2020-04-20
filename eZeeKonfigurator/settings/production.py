@@ -26,8 +26,8 @@ DATABASES = {
 # The path to where the static files should be installed. Your webserver should be configured to serve these files.
 STATIC_ROOT = 'mystaticroot'
 
-# If installing under a different path than /, set the following. No trailing slash.
-FORCE_SCRIPT_NAME = ''
+# If installing under a different path than /, set the following. e.g. "/ez"
+FORCE_SCRIPT_NAME = '/'
 
 # The URL that will serve up the files
-STATIC_URL = FORCE_SCRIPT_NAME + '/static/'
+STATIC_URL = '/static' + FORCE_SCRIPT_NAME
