@@ -24,6 +24,8 @@ DATABASES = {
 }
 
 STATIC_ROOT = 'mystaticroot'
-FORCE_SCRIPT_NAME = '/myscriptname'
+
+# If installing under a different path than /, set the following:
+# FORCE_SCRIPT_NAME = 'myscriptname'
 
 STATIC_URL = '/webconfig/static/'
