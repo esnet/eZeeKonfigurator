@@ -30,4 +30,4 @@ STATIC_ROOT = 'mystaticroot'
 FORCE_SCRIPT_NAME = ''
 
 # The URL that will serve up the files
-STATIC_URL = FORCE_SCRIPT_NAME + '/webconfig/static/'
+STATIC_URL = FORCE_SCRIPT_NAME + '/static/'
