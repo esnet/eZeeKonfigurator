@@ -531,15 +531,11 @@ class SensorModel(TestCase):
 
 
 class BrokerDaemonAPI(TestCase):
-    bd_uuid = "86439f94-0b58-41c0-bb49-78aef523189d"
     zs_uuid = "8099ee53-bbd9-4e1b-86f8-86a7f86612de"
-
-    def setUp(self):
-        models.BrokerDaemon.objects.create(uuid=self.bd_uuid, authorized=True, ip='127.0.0.1', port=47750).save()
 
     def test_sensor_create(self):
         sensor_data = {'sensor_uuid': self.zs_uuid, 'zeek_version': '3.0.0-25', 'hostname': 'bro-cmi.example.net'}
-        response = self.client.post(reverse('sensor_info', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}), json.dumps(sensor_data),
+        response = self.client.post(reverse('sensor_info', kwargs={'ver': 1}), json.dumps(sensor_data),
                                     content_type="application/json")
         self.assertEqual(response.status_code, 200)
 
@@ -548,7 +544,7 @@ class BrokerDaemonAPI(TestCase):
         options = [{'name': "Default::timeout", 'type': 'int', 'val': 3, 'doc': None}]
 
         data = {'sensor_uuid': self.zs_uuid, 'options': options}
-        response = self.client.post(reverse('sensor_option', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}),
+        response = self.client.post(reverse('sensor_option', kwargs={'ver': 1}),
                                     json.dumps(data),
                                     content_type="application/json")
         self.assertEqual(response.status_code, 200)
@@ -563,7 +559,7 @@ class BrokerDaemonAPI(TestCase):
 
         for o in options:
             data = {'sensor_uuid': self.zs_uuid, 'options': [o]}
-            response = self.client.post(reverse('sensor_option', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}),
+            response = self.client.post(reverse('sensor_option', kwargs={'ver': 1}),
                                     json.dumps(data),
                                     content_type="application/json")
             self.assertEqual(response.status_code, 200)
@@ -585,7 +581,7 @@ class BrokerDaemonAPI(TestCase):
 
         for o in options:
             data = {'sensor_uuid': self.zs_uuid, 'options': [o]}
-            response = self.client.post(reverse('sensor_option', kwargs={'brokerd_uuid': self.bd_uuid, 'ver': 1}),
+            response = self.client.post(reverse('sensor_option', kwargs={'ver': 1}),
                                         json.dumps(data), content_type="application/json")
             self.assertEqual(response.status_code, 200)
 

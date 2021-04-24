@@ -1,7 +1,4 @@
-import git
-import os
-import shutil
-import sys
+import datetime
 import uuid as uuidlib
 
 from django import db
@@ -32,17 +29,14 @@ def home(request):
         len(users)
     except db.utils.OperationalError:
         # Run the migrate command first
-        management.call_command('migrate')
+        management.call_command('makemigrations', interactive=False)
+        management.call_command('migrate', interactive=False)
+        management.call_command('collectstatic', verbosity=0, interactive=False)
         users = User.objects.all()
 
     # If we have no users, add one.
     if not users:
         return _setup_create_user(request)
-
-    # If we have no brokerd, add one.
-    auth = not getattr(settings, "BROKERD_AUTH_ENABLED", False)
-    if not models.BrokerDaemon.objects.filter(authorized=auth, port__isnull=False):
-        return _setup_create_brokerd(request)
 
     # If we have no sensors, help the user to add one.
     sensors = models.Sensor.objects.all()
@@ -58,15 +52,6 @@ def _setup_create_user(request):
     User.objects.create_superuser('admin', 'admin@example.com', password)
 
     return render(request, 'setup_1.html', {'password': password})
-
-
-def _setup_create_brokerd(request):
-    uuid = str(uuidlib.uuid4())
-    data = {'server': request.build_absolute_uri('brokerd_api/') + uuid}
-    m = models.BrokerDaemon.objects.create(uuid=uuid, authorized=True)
-    m.save()
-
-    return render(request, 'setup_2.html', data)
 
 
 def get_auth(status):
@@ -85,12 +70,8 @@ def get_sensor_count(request, sensor_type):
         return JsonResponse({'success': False}, status=404)
 
 
-def get_brokerd_count(request, brokerd_type):
-    result = models.BrokerDaemon.objects.filter(port__isnull=False, **get_auth(brokerd_type)).count()
-    if result:
-        return JsonResponse({'success': True, 'num': result})
-    else:
-        return JsonResponse({'success': False}, status=404)
+def changes(request):
+    return render(request, 'list_changes.html', {"changes": models.Change.objects.all().order_by('-time')})
 
 
 def list_sensors(request):
@@ -99,18 +80,22 @@ def list_sensors(request):
                                                  "auth_sensors": models.Sensor.objects.filter(authorized=True)})
 
 
-def list_brokerd(request):
-    return render(request, 'list_brokerd.html', {"pending_brokers": models.BrokerDaemon.objects.filter(authorized=None),
-                                                 "unauth_brokers": models.BrokerDaemon.objects.filter(authorized=False),
-                                                 "auth_brokers": models.BrokerDaemon.objects.filter(authorized=True)})
+def list_options(request, namespace=None, id=None):
+    data = {}
+    filters = {'option__sensor__authorized': True}
 
-
-def list_options(request, namespace=None):
-    settings = models.Setting.objects.filter(option__sensor__authorized=True)
     if namespace:
-        settings = settings.filter(option__namespace=namespace)
-    settings = settings.order_by(Lower('option__namespace'), Lower('option__name'))
-    return render(request, 'list_options.html', {"values": settings})
+        filters['option__namespace'] = namespace
+        data['namespace'] = namespace
+    if id:
+        filters['option__sensor__id'] = id
+        data['sensor'] = get_object_or_404(models.Sensor, pk=id)
+
+    data['settings'] = models.Setting.objects.filter(**filters).order_by(Lower('option__namespace'),
+                                                                         Lower('option__name'),
+                                                                         'option__sensor__hostname')
+
+    return render(request, 'list_options.html', data)
 
 
 def update_val(form, instance):
@@ -237,12 +222,6 @@ def get_empty(request, obj, handle_post=True):
         except ValueError:
             if obj.yield_type.startswith('record'):
                 for t in utils.get_record_types(obj.yield_type):
-                    #
-                    # idx_types = utils.get_index_types(t['field_type'])
-                    # if not idx_types:
-                    #     raise NotImplementedError("Don't know how to handle this record with no index types")
-                    # if len(idx_types) > 1:
-                    #     raise NotImplementedError("Don't know how to handle this record with multiple index types")
                     m = models.get_model_for_type(t['field_type'])
 
                     record_fields.append({'name': t['field_name'], 'type': t['field_type']})
@@ -306,22 +285,43 @@ def get_empty(request, obj, handle_post=True):
     return {'forms': f, 'keys': keys, 'record_fields': record_fields}, False
 
 
-def append_container(request, data, obj):
+def append_container(request, data, s):
+    obj = s.value
     if obj.ctr_type != 'v':
         data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
 
     data['yield_type'] = obj.yield_type
 
+    data['change_form'] = forms.change_form()
+    data['change_form_append'] = forms.change_form()
+
     data['errors'] = []
     changes = []
 
-    data['empty'], added = get_empty(request, obj)
+    old = str(obj)
 
-    if added:
-        changes.append("Added: %s" % added)
-        change_event = {'type': "change", 'option': data['setting'].option.get_name(), 'val': obj.json(), 'zeek_type': obj.type_name,
-                        'uuid': data['setting'].option.sensor.uuid}
-        send_event('test', 'message', change_event)
+    if request.POST:
+        data['change_form_append'] = forms.change_form(request.POST)
+        data['empty'], added = get_empty(request, obj, data['change_form_append'].is_valid())
+        if added:
+            new = str(obj)
+            change_form = data['change_form_append'].save(commit=False)
+            change_form.time = datetime.datetime.now()
+            if request.user.is_authenticated:
+                username = request.user.username
+            else:
+                username = "admin"
+            change_form.user = username
+            change_form.old_val = truncate(old)
+            change_form.new_val = truncate(new)
+            change_form.save()
+            change_form.options.set([s.option])
+            change_form.save()
+
+            changes.append("Added: %s" % added)
+            change_event = {'type': "change", 'option': data['setting'].option.get_name(), 'val': obj.json(), 'zeek_type': obj.type_name,
+                            'uuid': data['setting'].option.sensor.uuid}
+            send_event('test', 'message', change_event)
 
     data['items'] = get_container_items(obj, request, False)
 
@@ -339,36 +339,76 @@ def edit_container(request, data, s):
     changes = []
 
     old = str(obj)
+    new = ""
+
+    data['change_form'] = forms.change_form()
+    data['change_form_append'] = forms.change_form()
+
+    changed = False
 
     if request.POST:
-        for item in obj.items.all().order_by('position'):
-            for key in item.keys.all():
-                f = forms.get_form_for_model(key.v, request.POST)
-                valid, msg = update_val(f, key.v)
+        data['change_form'] = forms.change_form(request.POST)
+        if data['change_form'].is_valid():
+            for item in obj.items.all().order_by('position'):
+                for key in item.keys.all():
+                    f = forms.get_form_for_model(key.v, request.POST)
+                    valid, msg = update_val(f, key.v)
+                    changed = changed or valid
 
-            if item.v:
-                try:
-                    f = forms.get_form_for_model(item.v, request.POST)
-                    valid, msg = update_val(f, item.v)
-                except ValueError:
-                    pass
+                if item.v:
+                    try:
+                        f = forms.get_form_for_model(item.v, request.POST)
+                        valid, msg = update_val(f, item.v)
+                        changed = changed or valid
+                    except ValueError:
+                        pass
 
-        new = str(obj)
-        if old != new:
-            changes.append("Updated %s -> %s" % (old, new))
+            if changed:
+                new = str(obj)
+                change_form = data['change_form'].save(commit=False)
+                change_form.time = datetime.datetime.now()
+                if request.user.is_authenticated:
+                    username = request.user.username
+                else:
+                    username = "admin"
+                change_form.user = username
+                change_form.old_val = truncate(old)
+                change_form.new_val = truncate(new)
+                change_form.save()
+                change_form.options.set([s.option])
+                change_form.save()
 
-        # Now we delete
-        for k, v in request.POST.items():
-            if k.startswith('delete_') and v == 'on':
-                k = k.replace('delete_', "")
-                try:
-                    i = obj.items.get(id=k)
-                    val = str(i)
-                    i.delete()
-                    changes.append("Deleted " + val)
-                except obj.DoesNotExist:
-                    data['errors'].append("Could not find object '%s' to delete." % k)
+            # Now we delete
+            for k, v in request.POST.items():
+                if data['change_form'].is_valid() and k.startswith('delete_') and v == 'on':
+                    changed = False
+                    k = k.replace('delete_', "")
+                    try:
+                        i = obj.items.get(id=k)
+                        val = str(i)
+                        i.delete()
+                        changes.append("Deleted " + val)
+                        changed = True
+                    except obj.DoesNotExist:
+                        data['errors'].append("Could not find object '%s' to delete." % k)
 
+                    if changed:
+                        new = str(obj)
+                        change_form = data['change_form'].save(commit=False)
+                        change_form.time = datetime.datetime.now()
+                        if request.user.is_authenticated:
+                            username = request.user.username
+                        else:
+                            username = "admin"
+                        change_form.user = username
+                        change_form.old_val = truncate(old)
+                        change_form.new_val = truncate(new)
+                        change_form.save()
+                        change_form.options.set([s.option])
+                        change_form.save()
+
+            if old != new:
+                changes.append("Updated %s -> %s" % (old, new))
 
     data['empty'], added = get_empty(request, obj, False)
 
@@ -386,29 +426,55 @@ def edit_container(request, data, s):
     return render(request, 'edit_option_composite.html', data)
 
 
+def truncate(value, max_length=1024):
+    if len(value) <= max_length:
+        return value
+
+    msg = "...<truncated>"
+
+    return value[:len(value) - len(msg) - 1] + msg
+
+
 def edit_option(request, id):
     s = get_object_or_404(models.Setting, option__sensor__authorized=True, pk=id)
 
     args = {'id': id}
     data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
-            "append_url": reverse('append_option', kwargs=args)}
+            "append_url": reverse('append_option', kwargs=args),
+            'value_history': models.Change.objects.filter(options=s.option).order_by('-time')}
 
     if isinstance(s.value, models.ZeekContainer):
         return edit_container(request, data, s)
     else:
         data['form'] = forms.get_form_for_model(s.value, request.POST)
+        data['change_form'] = forms.change_form()
         if request.POST:
-            old = str(s)
-            if not request.POST.get('change_message'):
-                print("NOPE")
-            if data['form'].is_valid():
+            data['change_form'] = forms.change_form(request.POST)
+            old = str(s.value)
+            changed = False
+            new = ""
+            if data['form'].is_valid() and data['change_form'].is_valid():
                 data['form'].save()
-            new = str(s)
+                changed = True
+                new = str(s.value)
+                change_form = data['change_form'].save(commit=False)
+                change_form.time = datetime.datetime.now()
+                if request.user.is_authenticated:
+                    username = request.user.username
+                else:
+                    username = "admin"
+                change_form.user = username
+                change_form.old_val = truncate(old)
+                change_form.new_val = truncate(new)
+                change_form.save()
+                change_form.options.set([x.option for x in data['form'].instance.settings.all()])
+                change_form.save()
+
             name = s.option.get_name()
-            if old != new:
+            if changed and old != new:
                 change_event = {'type': "change", 'option': name, 'val': s.value.json(), 'zeek_type': models.get_name_of_model(s.value), 'uuid': s.option.sensor.uuid}
                 send_event('test', 'message', change_event)
-                data['success'] = ["Changes saved: %s -> %s" % (old, new)]
+                data['success'] = ["Changes saved: %s %s -> %s" % (name, old, new)]
         else:
             data['form'] = forms.get_form_for_model(s.value)
         return render(request, 'edit_option_atomic.html', data)
@@ -420,12 +486,13 @@ def append_option(request, id):
 
     args = {'id': id}
     data = {"setting": s, "type": models.get_doc_types(s.value), "edit_url": reverse('edit_option', kwargs=args),
-            "append_url": reverse('append_option', kwargs=args)}
+            "append_url": reverse('append_option', kwargs=args),
+            'value_history': models.Change.objects.filter(options=s.option).order_by('-time')}
 
     if not isinstance(s.value, models.ZeekContainer):
         return HttpResponse(400, "Can only append to a container.")
 
-    return append_container(request, data, s.value)
+    return append_container(request, data, s)
 
 
 def edit_value(request, val_type, id):
@@ -445,17 +512,9 @@ def edit_value(request, val_type, id):
 
     return render(request, 'edit_option_composite_nested.html', data)
 
+
 def append_value(request, val_type, id):
     return
-
-
-def export_options(request, ver, sensor_uuid):
-    response = render(request, 'export_options.html', {
-        "values": models.Setting.objects.filter(option__sensor__authorized=True, option__sensor__uuid=sensor_uuid).order_by('option__namespace',
-                                                                                                                            'option__name')},
-                  content_type='text/plain')
-    response['Content-Disposition'] = 'attachment; filename="ezeekonfigurator.tsv"'
-    return response
 
 
 @require_POST
@@ -475,8 +534,8 @@ def block_sensor(request, sensor_id):
 
 # Below here is for development
 
+
 def reset(request):
     models.Sensor.objects.all().delete()
-    #models.BrokerDaemon.objects.all().delete()
     models.Option.objects.all().delete()
     return JsonResponse("OK")

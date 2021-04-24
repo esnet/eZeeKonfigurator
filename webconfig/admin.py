@@ -8,4 +8,3 @@ class DefaultAdmin(admin.ModelAdmin):
 
 
 admin.site.register(webconfig.models.Sensor, DefaultAdmin)
-admin.site.register(webconfig.models.BrokerDaemon, DefaultAdmin)

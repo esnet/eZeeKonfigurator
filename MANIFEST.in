@@ -1,0 +1,3 @@
+include README.md
+recursive-include eZeeKonfigurator/templates *
+recursive-include webconfig/static *

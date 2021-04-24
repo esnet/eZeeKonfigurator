@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}
+eZK: Activity
+{% endblock %}
+{% block content %}
+        <nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item active"><a href="{% url "changes" %}" >Changes</a></li>
+  </ol>
+</nav>
+
+    <div>
+    <table class="table table-hover">
+  <thead>
+    <tr>
+      <th scope="col">Time</th>
+      <th scope="col">Option</th>
+          <th scope="col">Comment</th>
+          <th scope="col">User</th>
+        <th scope="col">Old Value</th>
+        <th scope="col">New Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for change in changes %}
+    <tr>
+        <th scope="row">{{ change.time }}</th>
+        <td>{% for option in change.options.all %}<a href="{% url "edit_option" id=option.id %}">{{ option }}</a>&nbsp;{% endfor %}</td>
+        <td>{{ change.msg }}</td>
+        <td>{{ change.user }}</td>
+      <td>{{ change.old_val }}</td>
+    <td>{{ change.new_val }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

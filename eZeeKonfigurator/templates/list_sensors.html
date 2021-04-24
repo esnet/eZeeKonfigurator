@@ -5,7 +5,7 @@ eZeeKonfigurator: Zeek Config Manager
 {% endblock %}
 {% block content %}
     {% if pending_sensors %}
-    <div class="row h-60">
+    <div class="row">
     <div class="alert alert-warning" role="alert">
     <h4 class="alert-heading">Unauthorized sensors found.</h4>
     <p>Before a sensor can receive configurations, it must be authorized.</p>
@@ -13,7 +13,7 @@ eZeeKonfigurator: Zeek Config Manager
     <p class="mb-0">Sensors can be removed later, if you change your mind.</p>
     </div>
     </div>
-    <div class="row h-100">
+    <div class="row">
     {% for s in pending_sensors %}
     <div class="card mb-3" style="max-width: 18rem;">
         <div class="card-header bg-secondary text-white"><i class="fas fa-exclamation-circle"></i> Unauthorized</div>
@@ -39,7 +39,7 @@ eZeeKonfigurator: Zeek Config Manager
     </div>
 <hr>
     {% endif %}
-    <div class="row h-100">
+    <div class="row">
     {% for s in auth_sensors %}
         <div class="card mb-3" style="max-width: 18rem;">
   <div class="card-header text-white bg-success">Connected ({{ s.zeek_version }})</div>
@@ -47,13 +47,13 @@ eZeeKonfigurator: Zeek Config Manager
     <h5 class="card-title">{{ s.hostname }}</h5>
     <h6 class="card-subtitle mb-2 text-muted">Added: {{ s.first_seen }}</h6>
     <h6 class="card-subtitle mb-2 text-muted">Seen: {{ s.last_seen | naturaltime }}</h6>
-    <a href="{% url "list_options" %}#{{ s.uuid }}" class="card-link">Konfigure</a>
+    <a href="{% url "list_options" id=s.id %}" class="card-link">Konfigure</a>
           <form action="{% url "block_sensor" s.pk %}" method="POST">{% csrf_token %}
                 <button type="submit" class="btn btn-outline-danger"><i class="fas fa-minus-circle"></i></button>
                 </form>
         </div>
 </div>
-    <div class="row h-100">
+    <div class="row">
     {% for s in unauth_sensors %}
     <div class="card mb-3" style="max-width: 18rem;">
         <div class="card-header bg-secondary text-white"><i class="fas fa-exclamation-circle"></i> Unauthorized</div>
@@ -72,8 +72,35 @@ eZeeKonfigurator: Zeek Config Manager
         {% endfor %}
     </div>
 <hr>
-
         {% endfor %}
+
+    <hr>
+
+<div class="h-75 w-75 mx-auto">
+<div class="h-25"><br><br><br><br><br></div>
+<div class="jumbotron">
+    <p class="lead">To deploy eZeeKonfigurator on another sensor:</p>
+  <hr class="my-4">
+    <p class="lead">Requirements:</p>
+    <dl class="row">
+        <dt class="col-sm-3">Zeek/Bro >= 2.6</dt>
+        <dd class="col-sm-9">
+            <p>eZeeKonfigurator uses the <a href="https://docs.zeek.org/en/stable/frameworks/configuration.html">Zeek config framework</a>, introduced in Bro 2.6.</p>
+            <p><i>Note: To support pattern (regex) data types, Zeek >= 3.0 is needed.</i></p>
+        </dd>
+
+        <dt class="col-sm-3">zkg/bro-pkg</dt>
+        <dd class="col-sm-9">
+            <p>eZeeKonfigurator requires a package to be installed on the server, for integration. To install it: <kbd>pip install zkg</kbd></p>
+        </dd>
+    </dl>
+          </dd>
+</dl>
+  <hr class="my-4">
+    <div class="row">
+  <p class="lead">On your Zeek node, switch to the user running Zeek, and run: <br><kbd>zkg install ezk_client --force</kbd></p>
+
     </div>
+</div>
 </div>
 {% endblock %}
