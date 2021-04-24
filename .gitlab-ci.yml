@@ -1,13 +1,14 @@
 stages:
-  - test
+  - pytest
+  - functional_test
 
 variables:
   GECKODRIVER_VERSION: "0.24.0"
   PYTHON_VERSION: "python36"
   DJANGO_LOG_LEVEL: "INFO"
 
-test:
-  stage: test
+gecko:
+  stage: functional_test
   before_script:
     - yum group install -y "Development Tools"
     - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox scl-utils
@@ -24,3 +25,10 @@ test:
     - bash -c "until curl -s http://localhost:8000; do sleep 1; done"
   script:
     - python3 eZeeKonfigurator/functional_tests.py
+
+pytest:
+  stage: pytest
+  before_script:
+    - python3 setup.py install
+  script:
+    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py test
