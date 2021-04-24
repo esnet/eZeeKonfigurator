@@ -2,6 +2,9 @@ stages:
   - pytest
   - functional_test
 
+default:
+  image: centos:8
+
 variables:
   GECKODRIVER_VERSION: "0.24.0"
   PYTHON_VERSION: "python36"
