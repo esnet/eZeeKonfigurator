@@ -32,6 +32,7 @@ gecko:
 pytest:
   stage: pytest
   before_script:
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip
     - python3 setup.py install
   script:
     - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py test
