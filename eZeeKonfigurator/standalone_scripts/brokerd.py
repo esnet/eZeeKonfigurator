@@ -18,7 +18,7 @@ except ImportError:
     # Next, we'll try to use the broker from zeekctl, but we need to find it.
     # We'll find it via zeek-config --python_dir
 
-    broker_error_message = "Could not import the Python Broker bindings. See: https://docs.zeek.org/projects/broker/en/stable/python.html#installation-in-a-virtual-environment"
+    broker_error_message = "Could not import the Python Broker bindings. See: https://docs.zeek.org/projects/broker/en/current/python.html#installation-in-a-virtual-environment"
 
     import distutils.spawn
 
