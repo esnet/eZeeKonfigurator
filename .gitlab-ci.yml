@@ -34,6 +34,7 @@ pytest:
   before_script:
     - yum group install -y "Development Tools"
     - yum install -y ${PYTHON_VERSION} ${PYTHON_VERSION}-devel
-    - python3 setup.py install
+    - python3 -m venv test_env
+    - test_env/bin/python3 setup.py install
   script:
-    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py test
+    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py test
