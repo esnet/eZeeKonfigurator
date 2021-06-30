@@ -1,6 +1,7 @@
+import unittest
+
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
-import unittest
 
 
 class HomePageTest(unittest.TestCase):
@@ -22,7 +23,6 @@ class HomePageTest(unittest.TestCase):
 
         # Is the sidebar loaded?
         self.assertIn('sidebar', self.browser.page_source)
-
 
 if __name__ == "__main__":
     unittest.main(warnings='ignore')
