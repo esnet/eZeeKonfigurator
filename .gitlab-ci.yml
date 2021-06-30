@@ -33,7 +33,7 @@ pytest:
   stage: pytest
   before_script:
     - yum group install -y "Development Tools"
-    - yum install -y ${PYTHON_VERSION}
+    - yum install -y ${PYTHON_VERSION} ${PYTHON_VERSION}-devel
     - python3 setup.py install
   script:
     - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py test
