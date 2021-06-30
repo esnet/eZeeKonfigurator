@@ -35,6 +35,7 @@ pytest:
     - yum group install -y "Development Tools"
     - yum install -y ${PYTHON_VERSION} ${PYTHON_VERSION}-devel
     - python3 -m venv test_env
+    - test_env/bin/python3 -m pip install --upgrade pip setuptools wheel
     - test_env/bin/python3 setup.py install
   script:
     - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py test
