@@ -4,5 +4,5 @@ Django==2.2.4
 django-crispy-forms==1.7.2
 django-eventstream==2.6.0
 GitPython==3.0.2
-requests==2.22.0
+requests==2.25.1
 gitdb2==2.0.6
