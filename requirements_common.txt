@@ -1,5 +1,6 @@
 multidict==4.7.6
 chardet==3.0.4
+pyasn1==0.4.8
 aiohttp-sse-client==0.2.1
 channels==3.0.3
 Django==3.2.4
