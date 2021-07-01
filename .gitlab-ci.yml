@@ -14,7 +14,9 @@ gecko:
   stage: functional_test
   before_script:
     - yum group install -y "Development Tools"
-    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION}-pip firefox scl-utils
+    - curl https://download.opensuse.org/repositories/security:/zeek/CentOS_8/security:zeek.repo -o /etc/yum.repos.d/zeek.repo
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION} firefox scl-utils zeekctl
+    - python3 -m pip install --upgrade pip setuptools wheel
     - yum install -y http://www6.atomicorp.com/channels/atomic/centos/7/x86_64/RPMS/atomic-heimdal-runtime-7.5.0-8.el7.x86_64.rpm
     - yum install -y http://www6.atomicorp.com/channels/atomic/centos/7/x86_64/RPMS/atomic-sqlite-3.8.5-6803.el7.art.x86_64.rpm
     - cp /opt/atomicorp/atomic/root/usr/bin/sqlite3 /usr/bin/
@@ -27,7 +29,7 @@ gecko:
     - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py runserver 1>&2 &
     - bash -c "until curl -s http://localhost:8000; do sleep 1; done"
   script:
-    - python3 eZeeKonfigurator/functional_tests.py
+    - PATH=/opt/zeek/bin:$PATH python3 eZeeKonfigurator/functional_tests.py
 
 pytest:
   stage: pytest
