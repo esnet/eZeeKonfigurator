@@ -13,6 +13,7 @@ variables:
 gecko:
   stage: functional_test
   before_script:
+    - ip addr list
     - yum group install -y "Development Tools"
     - curl https://download.opensuse.org/repositories/security:/zeek/CentOS_8/security:zeek.repo -o /etc/yum.repos.d/zeek.repo
     - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION} firefox scl-utils zeekctl sqlite net-tools
