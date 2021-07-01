@@ -1,3 +1,5 @@
+from broker_json.find_broker import broker
+from broker_json.utils import fix_ports, from_json, to_json
 from django.test import TestCase
 
 from eZeeKonfigurator.utils import *
@@ -263,14 +265,13 @@ class TestVectorSerialization(TestUtilsJSON):
         self.assertEqual(l, m.json())
 
 
-
 class TestDictSerialization(TestUtilsJSON):
-    valid_to_json = [({k:v for k, v in x.items()}, to_json(x)) for x in [
+    valid_to_json = [({k: v for k, v in x.items()}, to_json(x)) for x in [
         {'one': 1, 'two': 2},
         {1: 'one', 2: 'two'},
         {(1, 3): "even", (2, 4): "odd"},
     ]
-    ]
+                     ]
 
     valid_from_json = [(to_json(x), x, t) for x, t in [
         ({'one': 1, 'two': 2}, "table[string] of int"),
@@ -291,15 +292,15 @@ class TestDictSerialization(TestUtilsJSON):
         m = models.ZeekContainer.create("table[string, port] of count", l)
         self.assertEqual({'["one", "22/tcp"]': 1, '["two", "80/tcp"]': 2}, m.json())
 
-
     def test_from_json(self):
         for i, o, type_name in self.valid_from_json:
             with self.subTest(json_val=i, py_val=o):
                 result = broker.Data.to_py(from_json(i, type_name))
                 self.assertEqual(len(result), len(o))
 
-                r_k = list(result.keys())
+                r_k = fix_ports(list(result.keys()))
                 o_k = list(o.keys())
+
                 for elem in r_k:
                     self.assertIn(elem, o_k)
 

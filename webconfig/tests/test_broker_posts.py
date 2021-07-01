@@ -1,6 +1,6 @@
+from broker_json.utils import from_json, to_json
 from django.test import TestCase, Client
 
-from eZeeKonfigurator.utils import *
 from webconfig import models
 
 s_uuid = "0d030059-3ec7-42ee-a845-22e5381287ec"
@@ -17,8 +17,9 @@ class TestImport(TestCase):
         i = 1
         for s in self.items:
             with self.subTest(val=str(s)):
-                response = self.c.post('/brokerd_apiv1/sensor_option/',
-                                       {'sensor_uuid': s_uuid, 'options': [s]}, content_type='application/json')
+                response = self.c.post('/brokerd_api/v1/sensor_option/',
+                                       {'sensor_uuid': s_uuid, 'options': [s]},
+                                       content_type='application/json')
                 self.assertTrue(response.json()['success'])
                 self.assertEqual(response.status_code, 200)
                 response = self.c.get('/sensors/edit_option/%d' % i)

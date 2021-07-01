@@ -1,11 +1,9 @@
-import datetime
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
-import json
-import os
-from webconfig import models
+
 from eZeeKonfigurator.utils import *
+from webconfig import models
 
 
 class ZeekValTestCase(TestCase):
@@ -33,7 +31,10 @@ class ZeekAtomicValTestCase(ZeekValTestCase):
     def test_import_export(self):
         for import_val, export_val in self.valid_in_out:
             with self.subTest(import_val=import_val, export_val=export_val):
-                m = models.ZeekVal().create(self.type_name, import_val)
+                # TODO: This was updated because abstract base classes can't be instantiated.
+                # Investigate if there's a cleaner way to do this.
+                m = models.get_model_for_type(self.type_name).create(
+                    self.type_name, import_val)
                 m.save()
                 self.assertEqual(m.zeek_export(), export_val)
 
@@ -41,7 +42,9 @@ class ZeekAtomicValTestCase(ZeekValTestCase):
         for i in self.invalid_input:
             with self.subTest(import_val=i):
                 with self.assertRaises(ValidationError):
-                    m = models.ZeekVal().create(self.type_name, i)
+                    # Same as above TODO
+                    m = models.get_model_for_type(self.type_name).create(
+                        self.type_name, i)
                     m.save()
 
 
@@ -289,7 +292,8 @@ class ZeekPortTestCase(ZeekAtomicValTestCase):
         "1/1/tcp", "/tcp",
         "256/icmp", "65535/icmp",
         "-1/tcp", "-2/icmp",
-        "0.0/tcp"
+        "0.0/tcp", "0/",
+        "22/sctp"
     ]
 
 

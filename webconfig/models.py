@@ -1,5 +1,10 @@
 import datetime
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+import ipaddress
+import json
+import re
+
+from django.contrib.contenttypes.fields import GenericForeignKey, \
+    GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -7,10 +12,9 @@ from django.db import models
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.utils.timezone import make_aware
-import ipaddress
-import json
-import re
-from eZeeKonfigurator.utils import get_index_types, get_yield_type, get_record_types
+
+from eZeeKonfigurator.utils import get_index_types, get_yield_type, \
+    get_record_types
 
 
 def get_model_for_type(type_name):
@@ -34,7 +38,7 @@ def get_model_for_type(type_name):
     for c in composite:
         if type_name.startswith(c):
             return ZeekContainer
-    print(type_name)
+
     raise ValueError("Unknown type '%s'" % type_name)
 
 
@@ -248,8 +252,6 @@ class ZeekCount(ZeekVal):
         return {'v_msb': v_msb, 'v_lsb': v_lsb, 'v': v}
 
     def parse(self, type_name, val):
-        if not val:
-            val = 0
         if not isinstance(val, int):
             try:
                 val = int(val)
@@ -423,8 +425,10 @@ class ZeekPort(ZeekVal):
 
         if p.lower() in ['tcp', 'udp', 'icmp']:
             p = p.lower()[0]
+        elif p == "unknown":
+            p = "?"
         else:
-            p = '?"'
+            raise ValidationError("Unknown protocol: %s" % p)
 
         if p == 'i':
             if n < 0 or n > 255:
@@ -438,7 +442,7 @@ class ZeekPort(ZeekVal):
     def parse(self, type_name, val):
         if not isinstance(val, dict):
             data = val.split('/')
-            if len(data) != 2:
+            if len(data) != 2 or not data[1]:
                 raise ValidationError("Could not parse '%s' as port." % val)
             n, p = data
 
@@ -724,7 +728,7 @@ class ZeekContainer(ZeekVal):
 
         # Now we create all the keys
 
-        if not isinstance(idx_vals, list):
+        if not isinstance(idx_vals, list) and not isinstance(idx_vals, tuple):
             idx_vals = list([idx_vals])
 
         for c, t in zip(idx_vals, index_types):

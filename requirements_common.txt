@@ -9,3 +9,4 @@ django-eventstream==4.2.0
 GitPython==3.1.18
 requests==2.25.1
 gitdb2==4.0.2
+git+https://github.com/grigorescu/broker-to-json.git@main#egg=broker_json
