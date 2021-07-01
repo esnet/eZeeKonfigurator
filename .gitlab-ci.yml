@@ -32,11 +32,12 @@ gecko:
 pytest:
   stage: pytest
   before_script:
-    - yum group install -y "Development Tools"
+    - sudo wget https://download.opensuse.org/repositories/security:zeek/CentOS_8/security:zeek.repo -O /etc/yum.repos.d/zeek.repo
+    - yum group install -y "Development Tools" zeek
     - yum install -y ${PYTHON_VERSION} ${PYTHON_VERSION}-devel
     - python3 -m venv test_env
     - test_env/bin/python3 -m pip install --upgrade pip setuptools wheel
     - test_env/bin/python3 setup.py install
   script:
-    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py migrate
-    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py test
+    - PATH=/usr/local/zeek/bin:$PATH DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py migrate
+    - PATH=/usr/local/zeek/bin:$PATH DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py test
