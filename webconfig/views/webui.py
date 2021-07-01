@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django_eventstream import send_event
 
-from broker_json import utils
+import broker_json
 from webconfig import forms
 from webconfig import models
 
@@ -205,7 +205,7 @@ def get_empty(request, obj, handle_post=True):
         data = request.POST
 
     keys = []
-    idx_types = utils.get_index_types(obj.index_types)
+    idx_types = broker_json.get_index_types(obj.index_types)
     for i in range(len(idx_types)):
         if idx_types[i]:
             keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
@@ -218,14 +218,19 @@ def get_empty(request, obj, handle_post=True):
             f.append(forms.get_empty_form(models.get_model_for_type(obj.yield_type), data))
         except ValueError:
             if obj.yield_type.startswith('record'):
-                for t in utils.get_record_types(obj.yield_type):
+                for t in broker_json.get_record_types(obj.yield_type):
                     m = models.get_model_for_type(t['field_type'])
 
-                    record_fields.append({'name': t['field_name'], 'type': t['field_type']})
-                    f.append(forms.get_empty_form(m, data, required=False, prefix=t['field_name'], type_name=t['field_type']))
+                    record_fields.append(
+                        {'name': t['field_name'], 'type': t['field_type']})
+                    f.append(forms.get_empty_form(m, data, required=False,
+                                                  prefix=t['field_name'],
+                                                  type_name=t['field_type']))
             else:
-                for idx in utils.get_index_types(obj.yield_type):
-                    f.append(forms.get_empty_form(models.get_model_for_type(idx), data))
+                for idx in broker_json.get_index_types(obj.yield_type):
+                    f.append(
+                        forms.get_empty_form(models.get_model_for_type(idx),
+                                             data))
 
     all_valid = data and (keys or f)
     for k in keys:
@@ -285,7 +290,8 @@ def get_empty(request, obj, handle_post=True):
 def append_container(request, data, s):
     obj = s.value
     if obj.ctr_type != 'v':
-        data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+        data['idx_types'] = [x.replace("'", "") for x in
+                             broker_json.get_index_types(obj.index_types)]
 
     data['yield_type'] = obj.yield_type
 
@@ -329,7 +335,8 @@ def edit_container(request, data, s):
     obj = s.value
 
     if obj.ctr_type != 'v':
-        data['idx_types'] = [x.replace("'", "") for x in utils.get_index_types(obj.index_types)]
+        data['idx_types'] = [x.replace("'", "") for x in
+                             broker_json.get_index_types(obj.index_types)]
     data['yield_type'] = obj.yield_type
 
     data['errors'] = []

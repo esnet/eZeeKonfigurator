@@ -1,8 +1,11 @@
+import datetime
+import json
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from broker_json.utils import *
+from broker_json import get_index_types, get_yield_type
 from webconfig import models
 
 
@@ -714,13 +717,45 @@ class CompositeTestCase(TestCase):
         self.assertEqual(str(m), '{[1] = {[one] = 1.0}}')
 
     def test_table_hard(self):
-        m = models.ZeekVal.create("table[count, enum, port, addr, subnet] of table[count, enum, port, addr, subnet] of interval", {(1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"): {(2, "Notice::PAGE", "80/udp", "2600::1", "127.0.0.1/32"): 86400}})
-        self.assertEqual(str(m), '{[1, Notice::ALARM, 22/tcp, ::1, 0.0.0.0/0] = {[2, Notice::PAGE, 80/udp, 2600::1, 127.0.0.1/32] = 86400.0}}')
+        m = models.ZeekVal.create(
+            "table[count, enum, port, addr, subnet] of table[count, enum, port, addr, subnet] of interval",
+            {(1, "Notice::ALARM", "22/tcp", "::1", "0.0.0.0/0"): {(2,
+                                                                   "Notice::PAGE",
+                                                                   "80/udp",
+                                                                   "2600::1",
+                                                                   "127.0.0.1/32"): 86400}})
+        self.assertEqual(str(m),
+                         '{[1, Notice::ALARM, 22/tcp, ::1, 0.0.0.0/0] = {[2, Notice::PAGE, 80/udp, 2600::1, 127.0.0.1/32] = 86400.0}}')
 
     def test_truncation(self):
         m = models.ZeekVal.create("set[count]", [x for x in range(1000)])
-        self.assertEqual(str(m), "{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...and 990 more elements...}")
+        self.assertEqual(str(m),
+                         "{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...and 990 more elements...}")
 
     def test_offset(self):
         m = models.ZeekVal.create("set[count]", [x for x in range(1000)])
-        self.assertEqual(m.__str__(10, 10), "{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, ...and 980 more elements...}")
+        self.assertEqual(m.__str__(10, 10),
+                         "{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, ...and 980 more elements...}")
+
+    def test_vector_json(self):
+        l = [1, 2, 3, 4]
+        m = models.ZeekVal.create("vector of count", l)
+        self.assertEqual(l, m.json())
+
+        l = [0.1, 0.2, 0.3, 0.4]
+        m = models.ZeekVal.create("vector of double", l)
+        self.assertEqual(l, m.json())
+
+        l = ["a", "b", "c", "d"]
+        m = models.ZeekVal.create("vector of string", l)
+        self.assertEqual(l, m.json())
+
+    def test_table_json(self):
+        l = {'one': 1, 'two': 2}
+        m = models.ZeekContainer.create("table[string] of count", l)
+        self.assertEqual({'one': 1, 'two': 2}, m.json())
+
+        l = {('one', "22/tcp"): 1, ('two', "80/tcp"): 2}
+        m = models.ZeekContainer.create("table[string, port] of count", l)
+        self.assertEqual({'["one", "22/tcp"]': 1, '["two", "80/tcp"]': 2},
+                         m.json())
