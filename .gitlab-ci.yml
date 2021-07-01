@@ -13,19 +13,16 @@ variables:
 gecko:
   stage: functional_test
   before_script:
-    - ip addr list
     - yum group install -y "Development Tools"
     - curl https://download.opensuse.org/repositories/security:/zeek/CentOS_8/security:zeek.repo -o /etc/yum.repos.d/zeek.repo
-    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION} firefox scl-utils zeekctl sqlite net-tools
+    - yum install -y ${PYTHON_VERSION}-devel ${PYTHON_VERSION} firefox scl-utils zeekctl sqlite
     - python3 -m pip install --upgrade pip setuptools wheel
     - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
     - python3 setup.py install
-    - python3 manage.py runserver --settings eZeeKonfigurator.settings.development -v 3
-    - sleep 5
-    - netstat -tlnp
-    - bash -c "until curl -sv http://localhost:8000; do sleep 1; done"
+    - python3 manage.py runserver --settings eZeeKonfigurator.settings.development 0.0.0.0:17371
+    - bash -c "until curl -sv http://localhost:17371; do sleep 1; done"
   script:
     - PATH=/opt/zeek/bin:$PATH python3 eZeeKonfigurator/functional_tests.py
 
