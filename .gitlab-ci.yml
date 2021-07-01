@@ -21,10 +21,10 @@ gecko:
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
     - python3 setup.py install
-    - bash -c "python3 manage.py runserver --settings eZeeKonfigurator.settings.development 0.0.0.0:17371 1>&2 &"
+    - python3 manage.py runserver --settings eZeeKonfigurator.settings.development &
     - sleep 5
-    - lsof -P | grep TCP
-    - bash -c "until curl -sv http://localhost:17371; do sleep 1; done"
+    - lsof -P
+    - bash -c "until curl -sv http://localhost:8000; do sleep 1; done"
   script:
     - PATH=/opt/zeek/bin:$PATH python3 eZeeKonfigurator/functional_tests.py
 
