@@ -1,21 +1,18 @@
 import datetime
-import uuid as uuidlib
 
 from django import db
-from django.core import management
-from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import management
 from django.db.models.functions import Lower
-from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
-
+from django.views.decorators.http import require_POST
 from django_eventstream import send_event
 
-from webconfig import models
+from broker_json import utils
 from webconfig import forms
-from eZeeKonfigurator import utils
+from webconfig import models
 
 
 def home(request):

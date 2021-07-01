@@ -13,7 +13,7 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.utils.timezone import make_aware
 
-from eZeeKonfigurator.utils import get_index_types, get_yield_type, \
+from broker_json.utils import get_index_types, get_yield_type, \
     get_record_types
 
 

@@ -1,8 +1,6 @@
-from broker_json.find_broker import broker
-from broker_json.utils import fix_ports, from_json, to_json
 from django.test import TestCase
 
-from eZeeKonfigurator.utils import *
+from broker_json.utils import *
 from webconfig import models
 
 
