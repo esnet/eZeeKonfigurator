@@ -39,5 +39,5 @@ pytest:
     - test_env/bin/python3 -m pip install --upgrade pip setuptools wheel
     - test_env/bin/python3 setup.py install
   script:
-    - PATH=/usr/local/zeek/bin:$PATH DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py migrate
-    - PATH=/usr/local/zeek/bin:$PATH DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py test
+    - PATH=/opt/zeek/bin:$PATH DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py migrate
+    - PATH=/opt/zeek/bin:$PATH DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development test_env/bin/python3 manage.py test
