@@ -21,7 +21,7 @@ gecko:
     - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
     - chmod +x /usr/local/bin/geckodriver
     - python3 setup.py install
-    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py runserver 0.0.0.0:8000 1>&2 &
+    - DJANGO_SETTINGS_MODULE=eZeeKonfigurator.settings.development python3 manage.py runserver 0.0.0.0:8000
     - sleep 5
     - netstat -tlnp
     - bash -c "until curl -sv http://localhost:8000; do sleep 1; done"
