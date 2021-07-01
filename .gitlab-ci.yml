@@ -33,8 +33,8 @@ pytest:
   stage: pytest
   before_script:
     - curl https://download.opensuse.org/repositories/security:/zeek/CentOS_8/security:zeek.repo -o /etc/yum.repos.d/zeek.repo
-    - yum group install -y "Development Tools" zeek
-    - yum install -y ${PYTHON_VERSION} ${PYTHON_VERSION}-devel
+    - yum group install -y "Development Tools"
+    - yum install -y zeek ${PYTHON_VERSION} ${PYTHON_VERSION}-devel
     - python3 -m venv test_env
     - test_env/bin/python3 -m pip install --upgrade pip setuptools wheel
     - test_env/bin/python3 setup.py install
