@@ -42,6 +42,4 @@ urlpatterns = [
     path('web_api/sensor/authorize/<int:sensor_id>/', webui.authorize_sensor, name='authorize_sensor'),
     path('web_api/sensor/block/<int:sensor_id>/', webui.block_sensor, name='block_sensor'),
     path('admin/', admin.site.urls),
-
-    path('dev/reset/', webui.reset),
 ]

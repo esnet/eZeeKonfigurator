@@ -66,8 +66,7 @@ TEMPLATES = [
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
-WSGI_APPLICATION = 'eZeeKonfigurator.wsgi.application'
-ASGI_APPLICATION = 'eZeeKonfigurator.routing.application'
+ASGI_APPLICATION = 'eZeeKonfigurator.asgi.application'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
