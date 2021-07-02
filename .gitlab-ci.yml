@@ -28,14 +28,14 @@ pytest:
   stage: unit_test
   image: ${CI_REGISTRY_IMAGE}/ezk_runtime:latest
   script:
-    - venv/bin/python3 manage.py test
+    - cd /app; venv/bin/python3 manage.py test
 
 gecko:
   stage: functional_test
   image: ${CI_REGISTRY_IMAGE}/ezk_gecko:latest
   before_script:
-    - venv/bin/python3 manage.py runserver --settings eZeeKonfigurator.settings.development &
+    - cd /app; venv/bin/python3 manage.py runserver --settings eZeeKonfigurator.settings.development &
     - sleep 5
   script:
-    - venv/bin/python3 eZeeKonfigurator/functional_tests.py
+    - cd /app; venv/bin/python3 eZeeKonfigurator/functional_tests.py
 
