@@ -1,0 +1,8 @@
+.git
+.gitattributes
+.gitignore
+Dockerfile
+.gitlab-ci.yml
+db.sqlite3
+MANIFEST.in
+README.md
