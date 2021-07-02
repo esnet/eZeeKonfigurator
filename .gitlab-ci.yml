@@ -39,7 +39,7 @@ conversion_test:
 
 gecko:
   stage: functional_test
-  image: ${CI_REGISTRY_IMAGE}/ezk_gecko:latest
+  image: ${CI_REGISTRY_IMAGE}/ezk_test:latest
   before_script:
     - cd /app; venv/bin/python3 manage.py runserver --settings eZeeKonfigurator.settings.development &
     - sleep 5
