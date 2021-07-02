@@ -7,6 +7,7 @@ variables:
 stages:
   - build_docker
   - unit_test
+  - integration_test
   - functional_test
 
 build_docker:
@@ -15,20 +16,26 @@ build_docker:
       - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
   script:
-      - docker pull ${CI_REGISTRY_IMAGE}/ezk_runtime:latest || true
-      - docker build --cache-from ${CI_REGISTRY_IMAGE}/ezk_runtime:latest --tag ${CI_REGISTRY_IMAGE}/ezk_runtime:latest --target ezk_runtime .
-      - docker push ${CI_REGISTRY_IMAGE}/ezk_runtime:latest
+      - docker pull ${CI_REGISTRY_IMAGE}/ezk:latest || true
+      - docker build --cache-from ${CI_REGISTRY_IMAGE}/ezk:latest --tag ${CI_REGISTRY_IMAGE}/ezk:latest --target ezk .
+      - docker push ${CI_REGISTRY_IMAGE}/ezk:latest
 
-      - docker pull ${CI_REGISTRY_IMAGE}/ezk_gecko:latest || true
-      - docker build --cache-from ${CI_REGISTRY_IMAGE}/ezk_gecko:latest --tag ${CI_REGISTRY_IMAGE}/ezk_gecko:latest --target ezk_gecko .
-      - docker push ${CI_REGISTRY_IMAGE}/ezk_gecko:latest
+      - docker pull ${CI_REGISTRY_IMAGE}/ezk_test:latest || true
+      - docker build --cache-from ${CI_REGISTRY_IMAGE}/ezk_test:latest --tag ${CI_REGISTRY_IMAGE}/ezk_test:latest --target ezk_test .
+      - docker push ${CI_REGISTRY_IMAGE}/ezk_test:latest
 
 
-pytest:
+unit_test:
   stage: unit_test
-  image: ${CI_REGISTRY_IMAGE}/ezk_runtime:latest
+  image: ${CI_REGISTRY_IMAGE}/ezk:latest
   script:
-    - cd /app; venv/bin/python3 manage.py test
+    - cd /app; venv/bin/python3 manage.py test webconfig.tests.test_models
+
+conversion_test:
+  stage: integration_test
+  image: ${CI_REGISTRY_IMAGE}/ezk_test:latest
+  script:
+    - cd /app; venv/bin/python3 manage.py test webconfig.tests.test_broker_posts
 
 gecko:
   stage: functional_test

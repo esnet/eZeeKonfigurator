@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from broker_json import get_index_types, get_yield_type
+from broker_json.utils import get_index_types, get_yield_type
 from webconfig import models
 
 

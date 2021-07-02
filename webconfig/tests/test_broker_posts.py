@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 
-from broker_json import from_json, to_json
+from broker_json.conversions import from_json, to_json
 from webconfig import models
 
 s_uuid = "0d030059-3ec7-42ee-a845-22e5381287ec"

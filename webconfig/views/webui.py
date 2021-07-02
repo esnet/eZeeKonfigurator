@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django_eventstream import send_event
 
-import broker_json
+from broker_json.utils import get_index_types, get_record_types, get_yield_type
 from webconfig import forms
 from webconfig import models
 
@@ -205,7 +205,7 @@ def get_empty(request, obj, handle_post=True):
         data = request.POST
 
     keys = []
-    idx_types = broker_json.get_index_types(obj.index_types)
+    idx_types = get_index_types(obj.index_types)
     for i in range(len(idx_types)):
         if idx_types[i]:
             keys.append({'form': forms.get_empty_form(models.get_model_for_type(idx_types[i]), data, prefix=str(i))})
@@ -218,7 +218,7 @@ def get_empty(request, obj, handle_post=True):
             f.append(forms.get_empty_form(models.get_model_for_type(obj.yield_type), data))
         except ValueError:
             if obj.yield_type.startswith('record'):
-                for t in broker_json.get_record_types(obj.yield_type):
+                for t in get_record_types(obj.yield_type):
                     m = models.get_model_for_type(t['field_type'])
 
                     record_fields.append(
@@ -227,7 +227,7 @@ def get_empty(request, obj, handle_post=True):
                                                   prefix=t['field_name'],
                                                   type_name=t['field_type']))
             else:
-                for idx in broker_json.get_index_types(obj.yield_type):
+                for idx in get_index_types(obj.yield_type):
                     f.append(
                         forms.get_empty_form(models.get_model_for_type(idx),
                                              data))
@@ -291,7 +291,7 @@ def append_container(request, data, s):
     obj = s.value
     if obj.ctr_type != 'v':
         data['idx_types'] = [x.replace("'", "") for x in
-                             broker_json.get_index_types(obj.index_types)]
+                             get_index_types(obj.index_types)]
 
     data['yield_type'] = obj.yield_type
 
@@ -336,7 +336,7 @@ def edit_container(request, data, s):
 
     if obj.ctr_type != 'v':
         data['idx_types'] = [x.replace("'", "") for x in
-                             broker_json.get_index_types(obj.index_types)]
+                             get_index_types(obj.index_types)]
     data['yield_type'] = obj.yield_type
 
     data['errors'] = []
@@ -535,11 +535,3 @@ def block_sensor(request, sensor_id):
     s.authorized = False
     s.save()
     return list_sensors(request)
-
-# Below here is for development
-
-
-def reset(request):
-    models.Sensor.objects.all().delete()
-    models.Option.objects.all().delete()
-    return JsonResponse("OK")
